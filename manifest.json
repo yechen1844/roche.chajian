@@ -1,14 +1,13 @@
 {
   "id": "roche-universal-parser",
-  "name": "🌍 全网视觉中枢",
+  "name": "🌍 全网分享中枢",
   "version": "1.0.0",
-  "description": "全局网页抓取与独立视觉副 API 配置面板，支持全网智能 UI 渲染。",
+  "description": "极速抓取全网链接摘要，渲染纯净 UI 卡片。",
   "author": "你的名字",
   "entry": "https://raw.githubusercontent.com/yechen1844/roche.chajian/refs/heads/main/plugin.js",
   "hash": "",
   "permissions": [
     "ui",
-    "storage",
-    "ai:chat"
+    "storage"
   ]
 }
