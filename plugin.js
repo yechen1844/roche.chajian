@@ -37,9 +37,14 @@
     return { title: '网页链接', desc: '由于网站防爬虫限制，无法获取预览。', imgUrl: '' };
   }
 
+  // 兼容获取全局 API
+  function getApi() {
+    return window.Roche || window.roche;
+  }
+
   function showToast(msg) {
-    if (window.Roche && window.Roche.ui) window.Roche.ui.toast(msg);
-    else if (window.roche && window.roche.ui) window.roche.ui.toast(msg);
+    const api = getApi();
+    if (api && api.ui) api.ui.toast(msg);
   }
 
   function getPlatformStyle(url) {
@@ -63,17 +68,15 @@
         
         const text = el.value || '';
         
-        // ✨ 新增魔法：聊天框直接唤醒设置面板！
+        // ✨ 新增魔法指令：在聊天框打 /设置 回车，直接弹脸！
         if (text.trim() === '/设置' || text.trim() === '/外挂') {
           e.preventDefault();
-          el.value = ''; // 清空输入框
+          el.value = ''; 
           el.dispatchEvent(new Event('input', { bubbles: true }));
           
-          // 呼叫 Roche 底层 API 强行打开插件的前端界面
-          if (window.roche && window.roche.ui) {
-            window.roche.ui.openApp("universal-parser-home");
-          } else if (window.Roche && window.Roche.ui) {
-            window.Roche.ui.openApp("universal-parser-home");
+          const api = getApi();
+          if (api && api.ui) {
+            api.ui.openApp("universal-parser-home");
           }
           return;
         }
@@ -95,7 +98,9 @@
           el.disabled = true;
 
           try {
-            const savedConfig = await window.roche.storage.get("xhs_vision_config");
+            const api = getApi();
+            // 只有在具备 storage 权限时才会成功
+            const savedConfig = (api && api.storage) ? await api.storage.get("xhs_vision_config") : {};
             const config = { ...defaultConfig, ...savedConfig };
             
             showToast("🌍 正在云端渲染网页快照...");
@@ -105,12 +110,12 @@
             let safeImgHtml = "";
             let hiddenAiContext = "";
 
-            if (config.enabled && data.imgUrl) {
+            if (config.enabled && data.imgUrl && api && api.ai) {
               showToast("🧠 正在呼叫私有副 API 识别画面...");
               safeImgHtml = `<img src="https://wsrv.nl/?url=${encodeURIComponent(data.imgUrl)}&w=500&output=webp" class="xh-i" referrerpolicy="no-referrer">`;
               
               try {
-                const aiRes = await window.roche.ai.chat({
+                const aiRes = await api.ai.chat({
                   endpoint: config.endpoint,
                   apiKey: config.apiKey,
                   model: config.model,
@@ -161,15 +166,15 @@
     }
   }, true);
 
-  // 前端 UI 界面注册区
+  // 【核心】：这里就是注册到系统主屏幕上的 App
   window.RochePlugin.register({
-    id: "roche-universal-parser",
+    id: "roche-universal-parser", // 必须和 manifest.json 的 id 一模一样！
     name: "🌍 全网视觉中枢",
-    version: "12.0.0",
+    version: "13.0.0",
     apps: [
       {
         id: "universal-parser-home",
-        name: "副 API 设置",
+        name: "副 API 设置", // 这就是将会出现在桌面上/插件管理里的图标名字！
         icon: "settings",
         async mount(container, roche) {
           let config = { ...defaultConfig, ...(await roche.storage.get("xhs_vision_config")) };
@@ -177,9 +182,9 @@
           container.innerHTML = `
             <div style="padding: 20px; font-family: system-ui; color: var(--roche-text-primary, #333);">
               <h2 style="color: #007bff; margin-bottom: 10px;">🌍 视觉代理中枢设置</h2>
-              <p style="font-size:13px; color:#666; margin-bottom: 20px;">提示：如果在聊天框输入 <b>/设置</b> 或 <b>/外挂</b>，可以随时快速呼出此面板！</p>
+              <p style="font-size:13px; color:#666; margin-bottom: 20px;">此面板已挂载到主屏幕。如果在聊天框输入 <b>/设置</b>，也可以快速呼出此面板！</p>
               
-              <div style="background: rgba(100,100,100,0.1); padding: 15px; border-radius: 8px;">
+              <div style="background: rgba(120,120,120,0.1); padding: 15px; border-radius: 8px;">
                 <label style="display: flex; align-items: center; font-weight: bold; cursor: pointer; margin-bottom: 15px;">
                   <input type="checkbox" id="cfg-enable" ${config.enabled ? 'checked' : ''} style="margin-right: 10px; transform: scale(1.2);">
                   启用独立视觉副 API
@@ -188,18 +193,18 @@
                 <div id="api-settings" style="display: ${config.enabled ? 'block' : 'none'};">
                   <div style="margin-bottom: 12px;">
                     <div style="font-size: 12px; margin-bottom: 4px;">Endpoint (兼容 OpenAI 格式)</div>
-                    <input type="text" id="cfg-ep" value="${config.endpoint}" placeholder="https://api.openai.com/v1" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                    <input type="text" id="cfg-ep" value="${config.endpoint}" placeholder="https://api.openai.com/v1" style="width: 100%; padding: 8px; border: 1px solid rgba(100,100,100,0.3); border-radius: 4px; box-sizing: border-box; background: transparent; color: inherit;">
                   </div>
                   
                   <div style="margin-bottom: 12px;">
                     <div style="font-size: 12px; margin-bottom: 4px;">API Key</div>
-                    <input type="password" id="cfg-key" value="${config.apiKey}" placeholder="sk-..." style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                    <input type="password" id="cfg-key" value="${config.apiKey}" placeholder="sk-..." style="width: 100%; padding: 8px; border: 1px solid rgba(100,100,100,0.3); border-radius: 4px; box-sizing: border-box; background: transparent; color: inherit;">
                   </div>
                   
                   <div style="margin-bottom: 12px; display: flex; gap: 10px;">
                     <div style="flex: 1;">
                       <div style="font-size: 12px; margin-bottom: 4px;">选择视觉模型</div>
-                      <select id="cfg-model" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                      <select id="cfg-model" style="width: 100%; padding: 8px; border: 1px solid rgba(100,100,100,0.3); border-radius: 4px; background: transparent; color: inherit;">
                         <option value="${config.model}">${config.model || '点击右侧获取模型'}</option>
                       </select>
                     </div>
@@ -236,6 +241,7 @@
               const res = await fetch(`${ep}/v1/models`, { headers: { 'Authorization': `Bearer ${key}` } });
               const data = await res.json();
               if(data.data) {
+                // 生成模型列表，过滤一下看起来可能包含视觉的模型（或者不过滤全展示）
                 modelSelect.innerHTML = data.data.map(m => `<option value="${m.id}" ${m.id === config.model ? 'selected' : ''}>${m.id}</option>`).join('');
                 roche.ui.toast("获取模型成功！");
               } else { throw new Error("格式错误"); }
@@ -253,7 +259,7 @@
               model: modelSelect.value || epInput.value.trim()
             };
             await roche.storage.set("xhs_vision_config", config);
-            roche.ui.toast("设置已保存！关闭界面即可生效。");
+            roche.ui.toast("设置已保存！可以去发链接试试了。");
           });
         },
         async unmount(container, roche) {
