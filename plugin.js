@@ -1,7 +1,6 @@
 (() => {
   let isHijacking = true;
 
-  // 默认配置
   const defaultConfig = {
     enabled: false,
     endpoint: "https://api.openai.com/v1",
@@ -9,7 +8,6 @@
     model: ""
   };
 
-  // 强行超时打断器
   async function fetchWithTimeout(resource, timeout = 6000) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
@@ -23,7 +21,6 @@
     }
   }
 
-  // 获取通用网页快照
   async function getSnapshotData(url) {
     const microUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&meta=true`;
     try {
@@ -45,7 +42,6 @@
     else if (window.roche && window.roche.ui) window.roche.ui.toast(msg);
   }
 
-  // 智能识别平台主题
   function getPlatformStyle(url) {
     if (url.includes('xiaohongshu') || url.includes('xhslink')) 
       return { name: "小红书", icon: "📕", color: "rgba(255,36,66,0.85)", borderColor: "rgba(255,36,66,0.3)" };
@@ -55,24 +51,38 @@
       return { name: "微博", icon: "👁️", color: "rgba(230,22,45,0.85)", borderColor: "rgba(230,22,45,0.3)" };
     if (url.includes('bilibili.com') || url.includes('b23.tv')) 
       return { name: "Bilibili", icon: "📺", color: "rgba(251,114,153,0.85)", borderColor: "rgba(251,114,153,0.3)" };
-    
     return { name: "网页分享", icon: "🔗", color: "rgba(100,100,120,0.85)", borderColor: "rgba(100,100,120,0.3)" };
   }
 
-  // 主键盘监听事件
   document.addEventListener('keydown', async (e) => {
     if (!isHijacking) return;
     
     if (e.key === 'Enter' && !e.shiftKey) {
       const el = e.target;
       if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+        
+        const text = el.value || '';
+        
+        // ✨ 新增魔法：聊天框直接唤醒设置面板！
+        if (text.trim() === '/设置' || text.trim() === '/外挂') {
+          e.preventDefault();
+          el.value = ''; // 清空输入框
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          
+          // 呼叫 Roche 底层 API 强行打开插件的前端界面
+          if (window.roche && window.roche.ui) {
+            window.roche.ui.openApp("universal-parser-home");
+          } else if (window.Roche && window.Roche.ui) {
+            window.Roche.ui.openApp("universal-parser-home");
+          }
+          return;
+        }
+
         if (el.dataset.autoSend === "true") {
           setTimeout(() => { el.dataset.autoSend = ""; }, 100);
           return; 
         }
 
-        const text = el.value || '';
-        // 匹配任意 HTTP/HTTPS 链接
         const urlRegex = /https?:\/\/[^\s]+/i;
         const match = text.match(urlRegex);
 
@@ -85,7 +95,6 @@
           el.disabled = true;
 
           try {
-            // 每次发送前，实时读取最新配置
             const savedConfig = await window.roche.storage.get("xhs_vision_config");
             const config = { ...defaultConfig, ...savedConfig };
             
@@ -96,13 +105,11 @@
             let safeImgHtml = "";
             let hiddenAiContext = "";
 
-            // 如果启用了副API，且抓到了图片
             if (config.enabled && data.imgUrl) {
-              showToast("🧠 正在呼叫您的私有副 API 识别画面...");
+              showToast("🧠 正在呼叫私有副 API 识别画面...");
               safeImgHtml = `<img src="https://wsrv.nl/?url=${encodeURIComponent(data.imgUrl)}&w=500&output=webp" class="xh-i" referrerpolicy="no-referrer">`;
               
               try {
-                // 利用 roche.ai.chat 的自定义通道能力
                 const aiRes = await window.roche.ai.chat({
                   endpoint: config.endpoint,
                   apiKey: config.apiKey,
@@ -110,34 +117,24 @@
                   messages: [{
                     role: "user",
                     content: [
-                      { type: "text", text: "这是一张网页截图，请详细描述图片里的内容、可见的文字和画面细节。直接描述画面。" },
+                      { type: "text", text: "这是一张网页截图，请详细描述图片内容和可见文字。直接描述。" },
                       { type: "image_url", image_url: { url: data.imgUrl } }
                     ]
                   }]
                 });
                 if (aiRes && aiRes.text) aiVisionText = aiRes.text;
               } catch (err) {
-                console.warn("副 API 调用失败", err);
-                aiVisionText = "自定义视觉 API 调用失败，可能是模型不支持看图或网络受限。";
+                aiVisionText = "自定义视觉 API 调用失败，请检查配置。";
               }
-              
-              hiddenAiContext = `<div style="display:none;">【系统备注：用户发了一张网页截图。副API解析的画面内容：${aiVisionText}。请根据此内容与用户对话】</div>`;
+              hiddenAiContext = `<div style="display:none;">【系统备注：用户发了一张网页截图。副API解析的画面内容：${aiVisionText}。请根据此内容对话】</div>`;
             } else {
-              // 纯文本降级模式
               hiddenAiContext = `<div style="display:none;">【系统备注：用户发了一个网页。摘要内容：${data.desc}。请根据此内容对话】</div>`;
             }
 
-            // 获取个性化平台主题
             const theme = getPlatformStyle(url);
-            
-            let cleanText = text
-              .replace(/把口令拷走，打开【小红书】查看详情~/g, '')
-              .replace(/\[新版小红书\]/g, '')
-              .replace(/3 亿人的生活经验，都在小红书/g, '')
-              .replace(url, '').trim(); 
+            let cleanText = text.replace(/把口令拷走，打开【小红书】查看详情~/g, '').replace(/\[新版小红书\]/g, '').replace(/3 亿人的生活经验，都在小红书/g, '').replace(url, '').trim(); 
             const userCommentHtml = cleanText ? `<div class="xh-u">💬 "${cleanText}"</div>` : '';
             
-            // 极限压缩 UI 代码
             const css = `<style>.xh-w{display:block!important;width:100%;max-width:320px;min-width:260px;box-sizing:border-box;margin:8px 0;font-family:system-ui,-apple-system,sans-serif}.xh-b{background:rgba(30,30,35,0.7);backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px);border:1px solid ${theme.borderColor};border-radius:12px;overflow:hidden}.xh-h{display:flex;align-items:center;padding:8px 12px;background:linear-gradient(90deg,${theme.color} 0%,rgba(255,255,255,0.05) 100%);color:#fff;font-size:12px;font-weight:bold;letter-spacing:1px}.xh-i{width:100%;height:180px;object-fit:cover;display:block;background:#1a1a1a}.xh-c{padding:14px}.xh-t{font-size:15px;font-weight:600;color:#f0f0f0;margin-bottom:8px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.xh-d{font-size:13px;color:#aaa;line-height:1.6;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}.xh-u{padding:10px 14px;background:rgba(255,255,255,0.05);border-top:1px solid rgba(255,255,255,0.1);font-size:14px;color:#e2e8f0;font-style:italic}</style>`;
             
             const finalMsg = `${css}<div class="xh-w"><div class="xh-b"><div class="xh-h">${theme.icon} ${theme.name} · 网页分享</div>${safeImgHtml}<div class="xh-c"><div class="xh-t">${data.title}</div><div class="xh-d">${data.desc}</div></div>${userCommentHtml}</div>${hiddenAiContext}</div>`;
@@ -164,24 +161,23 @@
     }
   }, true);
 
-  // 注册控制台 UI
+  // 前端 UI 界面注册区
   window.RochePlugin.register({
     id: "roche-universal-parser",
     name: "🌍 全网视觉中枢",
-    version: "11.0.0",
+    version: "12.0.0",
     apps: [
       {
         id: "universal-parser-home",
         name: "副 API 设置",
         icon: "settings",
         async mount(container, roche) {
-          // 加载配置
           let config = { ...defaultConfig, ...(await roche.storage.get("xhs_vision_config")) };
 
           container.innerHTML = `
             <div style="padding: 20px; font-family: system-ui; color: var(--roche-text-primary, #333);">
-              <h2 style="color: #007bff; margin-bottom: 20px;">🌍 全网智能视觉分享中枢</h2>
-              <p style="font-size:13px; color:#666; margin-bottom: 20px;">支持自动识别任意网址并渲染专属 UI。开启下方副 API 后，即可实现后台画面的静默识别。</p>
+              <h2 style="color: #007bff; margin-bottom: 10px;">🌍 视觉代理中枢设置</h2>
+              <p style="font-size:13px; color:#666; margin-bottom: 20px;">提示：如果在聊天框输入 <b>/设置</b> 或 <b>/外挂</b>，可以随时快速呼出此面板！</p>
               
               <div style="background: rgba(100,100,100,0.1); padding: 15px; border-radius: 8px;">
                 <label style="display: flex; align-items: center; font-weight: bold; cursor: pointer; margin-bottom: 15px;">
@@ -207,7 +203,7 @@
                         <option value="${config.model}">${config.model || '点击右侧获取模型'}</option>
                       </select>
                     </div>
-                    <button id="btn-fetch" style="margin-top: 18px; padding: 0 15px; background: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer;">刷新获取模型</button>
+                    <button id="btn-fetch" style="margin-top: 18px; padding: 0 15px; background: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer;">获取模型</button>
                   </div>
                 </div>
                 
@@ -226,12 +222,10 @@
           const fetchBtn = container.querySelector('#btn-fetch');
           const saveBtn = container.querySelector('#btn-save');
 
-          // 开关联动
           checkEnable.addEventListener('change', (e) => {
             settingsDiv.style.display = e.target.checked ? 'block' : 'none';
           });
 
-          // 获取模型列表
           fetchBtn.addEventListener('click', async () => {
             let ep = epInput.value.trim().replace(/\/v1\/?$/, '').replace(/\/$/, '');
             let key = keyInput.value.trim();
@@ -243,26 +237,23 @@
               const data = await res.json();
               if(data.data) {
                 modelSelect.innerHTML = data.data.map(m => `<option value="${m.id}" ${m.id === config.model ? 'selected' : ''}>${m.id}</option>`).join('');
-                roche.ui.toast("获取模型成功！请确保选择的是支持视觉(Vision)的模型。");
-              } else {
-                throw new Error("格式错误");
-              }
+                roche.ui.toast("获取模型成功！");
+              } else { throw new Error("格式错误"); }
             } catch (err) {
-              roche.ui.toast("获取失败，请检查连通性或跨域限制。");
+              roche.ui.toast("获取失败，请检查连通性");
             }
-            fetchBtn.innerText = "刷新获取模型";
+            fetchBtn.innerText = "获取模型";
           });
 
-          // 保存配置
           saveBtn.addEventListener('click', async () => {
             config = {
               enabled: checkEnable.checked,
               endpoint: epInput.value.trim(),
               apiKey: keyInput.value.trim(),
-              model: modelSelect.value || epInput.value.trim() // 防止空模型
+              model: modelSelect.value || epInput.value.trim()
             };
             await roche.storage.set("xhs_vision_config", config);
-            roche.ui.toast("设置已保存！去主页发送链接试试吧~");
+            roche.ui.toast("设置已保存！关闭界面即可生效。");
           });
         },
         async unmount(container, roche) {
