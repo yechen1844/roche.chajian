@@ -1,51 +1,28 @@
 (() => {
   let isHijacking = true;
   
-  // 核心解析函数升级：多重代理 + 优雅降级兜底
-  async function parseXhs(url) {
-    // 准备 3 个不同的免费代理服务器轮番上阵
-    const proxies = [
-      `https://api.codetabs.com/v1/proxy?quest=${url}`,
-      `https://corsproxy.io/?${encodeURIComponent(url)}`,
-      `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`
-    ];
-
-    let html = "";
+  // 核心：调用云端无头浏览器进行截图
+  async function captureWebSnapshot(url) {
+    // 调用 Microlink API：要求抓取 meta 标签，并且强制要求生成 screenshot
+    const apiUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&meta=true`;
     
-    // 挨个尝试代理，只要有一个成功就立刻停止
-    for (const proxy of proxies) {
-      try {
-        const res = await fetch(proxy, { timeout: 5000 });
-        if (res.ok) {
-          const data = await res.text();
-          // allorigins 返回的是 JSON，其他返回的是纯 HTML
-          html = proxy.includes('allorigins') ? JSON.parse(data).contents : data;
-          
-          // 如果拿到的网页里有 title 标签，说明抓取成功了
-          if (html && html.includes('<title>')) {
-            break; 
-          }
-        }
-      } catch (e) {
-        console.log("代理请求失败，尝试下一个...", proxy);
-      }
+    // 截图比较慢，给 15 秒的耐心等待时间
+    const res = await fetch(apiUrl, { timeout: 15000 });
+    if (!res.ok) throw new Error("云端服务器请求失败");
+
+    const json = await res.json();
+    if (json.status !== 'success') throw new Error("云端抓取失败");
+
+    const title = json.data.title || '分享网页';
+    const desc = json.data.description || '无摘要内容';
+    const screenshotUrl = json.data.screenshot?.url;
+
+    if (!screenshotUrl) {
+      throw new Error("云端未能生成图片");
     }
 
-    // 【兜底方案】如果三个代理全军覆没（被小红书彻底拦截）
-    if (!html || html.includes('验证码') || html.includes('403 Forbidden')) {
-       return `[分享小红书] 链接：${url} （注：这篇笔记被小红书加密了，我没能抓到详细摘要。你可以直接点开看看哦，然后告诉我你的想法~）`;
-    }
-    
-    // 提取标题
-    const titleMatch = html.match(/<title>(.*?)<\/title>/i);
-    let title = titleMatch ? titleMatch[1].replace(/\s*-\s*小红书.*/i, '') : '一篇有趣的笔记';
-    
-    // 提取描述
-    const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["'](.*?)["']/i) || 
-                      html.match(/<meta[^>]*content=["'](.*?)["'][^>]*name=["']description["']/i);
-    let desc = descMatch ? descMatch[1] : '这可能是一组好看的图集或视频~';
-    
-    return `[分享小红书] 标题：《${title}》。内容摘要：${desc} —— 你觉得怎么样？`;
+    // 将结果组装成带图片的 Markdown 格式
+    return `[我分享了一个网页] 标题：《${title}》\n\n![网页快照](${screenshotUrl})\n\n摘要补充：${desc}\n—— 你觉得这个怎么样？`;
   }
 
   function showToast(msg) {
@@ -60,62 +37,59 @@
       const el = e.target;
       if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
         const text = el.value || '';
-        // 匹配小红书链接
-        if (text.length > 5 && (text.includes('xiaohongshu') || text.includes('xhslink'))) {
-          const xhsRegex = /https?:\/\/(?:www\.)?xiaohongshu\.com\/[^\s]+|https?:\/\/xhslink\.com\/[^\s]+/i;
-          const match = text.match(xhsRegex);
+        
+        // 这次我们放宽条件：只要是包含 http 或 https 的链接，全拦截！
+        const urlRegex = /https?:\/\/[^\s]+/i;
+        const match = text.match(urlRegex);
 
-          if (match && !el.dataset.xhsParsed) {
-            // 成功拦截回车
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            
-            const url = match[0];
-            showToast("【小红书外挂】拦截成功！正在尝试穿透防爬虫...");
-            
-            el.disabled = true;
-            el.value = "⏳ 正在突破小红书限制提取内容，请稍等1~5秒...";
+        if (match && !el.dataset.xhsParsed) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          
+          const url = match[0];
+          showToast("【快照外挂】已拦截链接，正在呼叫云端浏览器拍照...");
+          
+          el.disabled = true;
+          // 提示用户耐心等待
+          el.value = "📸 正在云端渲染网页并截图，大约需要 5~10 秒，请稍等...";
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+
+          try {
+            const parsedText = await captureWebSnapshot(url);
+            el.value = text.replace(url, parsedText);
             el.dispatchEvent(new Event('input', { bubbles: true }));
-
-            try {
-              const parsedText = await parseXhs(url);
-              el.value = text.replace(url, parsedText);
-              el.dispatchEvent(new Event('input', { bubbles: true }));
-              el.dataset.xhsParsed = "true";
-              showToast("【小红书外挂】转换完毕！再次按回车发送~");
-            } catch (err) {
-              // 极小概率发生严重错误，把原链接还给用户
-              showToast("严重错误，请直接发送原链接");
-              el.value = text;
-              el.dispatchEvent(new Event('input', { bubbles: true }));
-            } finally {
-              el.disabled = false;
-              el.focus();
-            }
-          } else if (el.dataset.xhsParsed) {
-             // 允许发送，清理标记
-             setTimeout(() => { el.dataset.xhsParsed = ""; }, 500);
+            el.dataset.xhsParsed = "true";
+            showToast("【快照外挂】咔嚓！拍照完毕，再次按回车发送图文！");
+          } catch (err) {
+            showToast("云端快照生成失败，可能是对方网站拒绝访问");
+            el.value = text;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+          } finally {
+            el.disabled = false;
+            el.focus();
           }
+        } else if (el.dataset.xhsParsed) {
+           setTimeout(() => { el.dataset.xhsParsed = ""; }, 500);
         }
       }
     }
   }, true);
 
   window.RochePlugin.register({
-    id: "roche-xhs-parser",
-    name: "📕 小红书外挂",
-    version: "1.0.4",
+    id: "roche-snapshot-parser",
+    name: "📸 网页快照外挂",
+    version: "2.0.0",
     apps: [
       {
-        id: "roche-xhs-parser-home",
-        name: "外挂控制台",
+        id: "roche-snapshot-home",
+        name: "快照控制台",
         icon: "extension",
         async mount(container, roche) {
           container.innerHTML = `<div style="padding: 20px; font-family: sans-serif;">
-            <h2 style="color: #ff2442;">📕 小红书外挂 v1.0.4</h2>
-            <p>已加入多重防反爬虫穿透机制。</p >
-            <p style="font-size:12px; color:#666;">去主聊天框粘贴链接，按回车即可自动解析。</p >
+            <h2 style="color: #007bff;">📸 网页快照外挂 v2.0</h2>
+            <p>本次升级支持<b>所有网页链接</b>。</p >
+            <p style="font-size:13px; color:#666;">去聊天框粘贴任意网址，按回车，插件会自动召唤云端浏览器拍下网页截图并发给角色！</p >
           </div>`;
         },
         async unmount(container, roche) {
