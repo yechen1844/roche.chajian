@@ -1,12 +1,14 @@
 {
-  "id": "xhs-parser-plugin",
-  "name": "📕 小红书外挂",
-  "version": "1.0.1",
-  "description": "黑魔法插件：在主聊天框直接粘贴小红书链接，自动拦截并解析成笔记文字摘要发送给角色。",
+  "id": "roche-universal-parser",
+  "name": "🌍 全网视觉中枢",
+  "version": "1.0.0",
+  "description": "全局网页抓取与独立视觉副 API 配置面板，支持全网智能 UI 渲染。",
   "author": "你的名字",
   "entry": "https://raw.githubusercontent.com/yechen1844/roche.chajian/refs/heads/main/plugin.js",
   "hash": "",
   "permissions": [
-    "ui"
+    "ui",
+    "storage",
+    "ai:chat"
   ]
 }
