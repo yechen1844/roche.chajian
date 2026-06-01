@@ -1,8 +1,16 @@
 (() => {
   let isHijacking = true;
 
-  // 强行超时打断器，限时4秒
-  async function fetchWithTimeout(resource, timeout = 4000) {
+  // 默认配置
+  const defaultConfig = {
+    enabled: false,
+    endpoint: "https://api.openai.com/v1",
+    apiKey: "",
+    model: ""
+  };
+
+  // 强行超时打断器
+  async function fetchWithTimeout(resource, timeout = 6000) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
     try {
@@ -15,38 +23,21 @@
     }
   }
 
-  // 极速文本抓取 (3个代理同时竞速，秒出结果)
-  async function getTextFast(url) {
-    return new Promise((resolve, reject) => {
-      const proxies = [
-        `https://api.codetabs.com/v1/proxy?quest=${url}`,
-        `https://corsproxy.io/?${encodeURIComponent(url)}`,
-        `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`
-      ];
-      
-      let failCount = 0;
-      proxies.forEach(async (proxy) => {
-        try {
-          const res = await fetchWithTimeout(proxy, 4000);
-          if (res.ok) {
-            const data = await res.text();
-            const html = proxy.includes('allorigins') ? JSON.parse(data).contents : data;
-            if (html && !html.includes('验证码') && html.includes('<title>')) {
-              const titleMatch = html.match(/<title>(.*?)<\/title>/i);
-              const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["'](.*?)["']/i) || 
-                                html.match(/<meta[^>]*content=["'](.*?)["'][^>]*name=["']description["']/i);
-              resolve({
-                title: titleMatch ? titleMatch[1].replace(/\s*-\s*小红书.*/i, '') : '一篇加密笔记',
-                desc: descMatch ? descMatch[1] : '该笔记有隐私限制，建议直接打开 App 查看。'
-              });
-              return;
-            }
-          }
-        } catch (e) {}
-        failCount++;
-        if (failCount === proxies.length) reject(new Error("文本抓取失败"));
-      });
-    });
+  // 获取通用网页快照
+  async function getSnapshotData(url) {
+    const microUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&meta=true`;
+    try {
+      const res = await fetchWithTimeout(microUrl, 8000);
+      const json = await res.json();
+      if (json.status === 'success') {
+        return {
+          title: (json.data.title || '分享了一个网页').replace(/\s*-\s*小红书.*/i, ''),
+          desc: json.data.description || '摘要提取中...',
+          imgUrl: json.data.screenshot?.url || json.data.image?.url || ''
+        };
+      }
+    } catch (e) {}
+    return { title: '网页链接', desc: '由于网站防爬虫限制，无法获取预览。', imgUrl: '' };
   }
 
   function showToast(msg) {
@@ -54,6 +45,21 @@
     else if (window.roche && window.roche.ui) window.roche.ui.toast(msg);
   }
 
+  // 智能识别平台主题
+  function getPlatformStyle(url) {
+    if (url.includes('xiaohongshu') || url.includes('xhslink')) 
+      return { name: "小红书", icon: "📕", color: "rgba(255,36,66,0.85)", borderColor: "rgba(255,36,66,0.3)" };
+    if (url.includes('zhihu.com') || url.includes('zhibo')) 
+      return { name: "知乎", icon: "📘", color: "rgba(0,102,255,0.85)", borderColor: "rgba(0,102,255,0.3)" };
+    if (url.includes('weibo.com') || url.includes('weibo.cn')) 
+      return { name: "微博", icon: "👁️", color: "rgba(230,22,45,0.85)", borderColor: "rgba(230,22,45,0.3)" };
+    if (url.includes('bilibili.com') || url.includes('b23.tv')) 
+      return { name: "Bilibili", icon: "📺", color: "rgba(251,114,153,0.85)", borderColor: "rgba(251,114,153,0.3)" };
+    
+    return { name: "网页分享", icon: "🔗", color: "rgba(100,100,120,0.85)", borderColor: "rgba(100,100,120,0.3)" };
+  }
+
+  // 主键盘监听事件
   document.addEventListener('keydown', async (e) => {
     if (!isHijacking) return;
     
@@ -66,82 +72,198 @@
         }
 
         const text = el.value || '';
-        if (text.length > 5 && (text.includes('xiaohongshu') || text.includes('xhslink'))) {
-          const xhsRegex = /https?:\/\/(?:www\.)?xiaohongshu\.com\/[^\s]+|https?:\/\/xhslink\.com\/[^\s]+/i;
-          const match = text.match(xhsRegex);
+        // 匹配任意 HTTP/HTTPS 链接
+        const urlRegex = /https?:\/\/[^\s]+/i;
+        const match = text.match(urlRegex);
 
-          if (match) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
+        if (match) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          
+          const url = match[0];
+          el.disabled = true;
+
+          try {
+            // 每次发送前，实时读取最新配置
+            const savedConfig = await window.roche.storage.get("xhs_vision_config");
+            const config = { ...defaultConfig, ...savedConfig };
             
-            const url = match[0];
-            showToast("⚡ 正在极速抽取笔记文本...");
-            el.disabled = true;
+            showToast("🌍 正在云端渲染网页快照...");
+            const data = await getSnapshotData(url);
+            
+            let aiVisionText = "";
+            let safeImgHtml = "";
+            let hiddenAiContext = "";
 
-            try {
-              // 1秒内拿到纯净文本
-              const data = await getTextFast(url).catch(() => ({ 
-                title: "分享了一篇笔记", desc: "该笔记有防爬虫限制，无法抓取摘要。" 
-              }));
+            // 如果启用了副API，且抓到了图片
+            if (config.enabled && data.imgUrl) {
+              showToast("🧠 正在呼叫您的私有副 API 识别画面...");
+              safeImgHtml = `<img src="https://wsrv.nl/?url=${encodeURIComponent(data.imgUrl)}&w=500&output=webp" class="xh-i" referrerpolicy="no-referrer">`;
               
-              // 自动清洗垃圾口令
-              let cleanText = text
-                .replace(/把口令拷走，打开【小红书】查看详情~/g, '')
-                .replace(/\[新版小红书\]/g, '')
-                .replace(/3 亿人的生活经验，都在小红书/g, '')
-                .replace(url, '').trim(); 
-              
-              // 巧妙设计：如果用户说了话，把用户的话做成一个优雅的对话气泡框放进卡片里
-              const userCommentHtml = cleanText ? `<div class="xh-u">💬 "${cleanText}"</div>` : '';
-              
-              // ==========================================
-              // 完美结界：100% 纯代码单发，AI 读源码，肉眼看UI
-              // ==========================================
-              const css = `<style>.xh-w{display:block!important;width:100%;max-width:320px;min-width:260px;box-sizing:border-box;margin:8px 0;font-family:system-ui,-apple-system,sans-serif}.xh-b{background:rgba(30,30,35,0.6);backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px);border:1px solid rgba(255,36,66,0.25);border-radius:12px;overflow:hidden}.xh-h{display:flex;align-items:center;padding:8px 12px;background:linear-gradient(90deg,rgba(255,36,66,0.85) 0%,rgba(255,36,66,0.1) 100%);color:#fff;font-size:12px;font-weight:bold;letter-spacing:1px}.xh-c{padding:14px}.xh-t{font-size:15px;font-weight:600;color:#f0f0f0;margin-bottom:8px;line-height:1.5}.xh-d{font-size:13px;color:#aaa;line-height:1.6;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}.xh-u{padding:10px 14px;background:rgba(255,255,255,0.05);border-top:1px solid rgba(255,255,255,0.05);font-size:14px;color:#e2e8f0;font-style:italic}</style>`;
-              
-              const finalMsg = `${css}<div class="xh-w"><div class="xh-b"><div class="xh-h">📕 小红书 · 笔记分享</div><div class="xh-c"><div class="xh-t">${data.title}</div><div class="xh-d">${data.desc}</div></div>${userCommentHtml}</div></div>`;
-
-              el.value = finalMsg;
-              el.dispatchEvent(new Event('input', { bubbles: true }));
-              
-              // 自动发送
-              setTimeout(() => {
-                el.dataset.autoSend = "true";
-                el.disabled = false;
-                el.focus(); 
-                const enterEvent = new KeyboardEvent('keydown', {
-                  key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true
+              try {
+                // 利用 roche.ai.chat 的自定义通道能力
+                const aiRes = await window.roche.ai.chat({
+                  endpoint: config.endpoint,
+                  apiKey: config.apiKey,
+                  model: config.model,
+                  messages: [{
+                    role: "user",
+                    content: [
+                      { type: "text", text: "这是一张网页截图，请详细描述图片里的内容、可见的文字和画面细节。直接描述画面。" },
+                      { type: "image_url", image_url: { url: data.imgUrl } }
+                    ]
+                  }]
                 });
-                el.dispatchEvent(enterEvent);
-                showToast("✨ 发送成功！");
-              }, 150);
-
-            } catch (err) {
-              showToast("严重错误，请检查网络");
-              el.disabled = false;
-              el.focus();
+                if (aiRes && aiRes.text) aiVisionText = aiRes.text;
+              } catch (err) {
+                console.warn("副 API 调用失败", err);
+                aiVisionText = "自定义视觉 API 调用失败，可能是模型不支持看图或网络受限。";
+              }
+              
+              hiddenAiContext = `<div style="display:none;">【系统备注：用户发了一张网页截图。副API解析的画面内容：${aiVisionText}。请根据此内容与用户对话】</div>`;
+            } else {
+              // 纯文本降级模式
+              hiddenAiContext = `<div style="display:none;">【系统备注：用户发了一个网页。摘要内容：${data.desc}。请根据此内容对话】</div>`;
             }
+
+            // 获取个性化平台主题
+            const theme = getPlatformStyle(url);
+            
+            let cleanText = text
+              .replace(/把口令拷走，打开【小红书】查看详情~/g, '')
+              .replace(/\[新版小红书\]/g, '')
+              .replace(/3 亿人的生活经验，都在小红书/g, '')
+              .replace(url, '').trim(); 
+            const userCommentHtml = cleanText ? `<div class="xh-u">💬 "${cleanText}"</div>` : '';
+            
+            // 极限压缩 UI 代码
+            const css = `<style>.xh-w{display:block!important;width:100%;max-width:320px;min-width:260px;box-sizing:border-box;margin:8px 0;font-family:system-ui,-apple-system,sans-serif}.xh-b{background:rgba(30,30,35,0.7);backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px);border:1px solid ${theme.borderColor};border-radius:12px;overflow:hidden}.xh-h{display:flex;align-items:center;padding:8px 12px;background:linear-gradient(90deg,${theme.color} 0%,rgba(255,255,255,0.05) 100%);color:#fff;font-size:12px;font-weight:bold;letter-spacing:1px}.xh-i{width:100%;height:180px;object-fit:cover;display:block;background:#1a1a1a}.xh-c{padding:14px}.xh-t{font-size:15px;font-weight:600;color:#f0f0f0;margin-bottom:8px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.xh-d{font-size:13px;color:#aaa;line-height:1.6;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}.xh-u{padding:10px 14px;background:rgba(255,255,255,0.05);border-top:1px solid rgba(255,255,255,0.1);font-size:14px;color:#e2e8f0;font-style:italic}</style>`;
+            
+            const finalMsg = `${css}<div class="xh-w"><div class="xh-b"><div class="xh-h">${theme.icon} ${theme.name} · 网页分享</div>${safeImgHtml}<div class="xh-c"><div class="xh-t">${data.title}</div><div class="xh-d">${data.desc}</div></div>${userCommentHtml}</div>${hiddenAiContext}</div>`;
+
+            el.value = finalMsg.replace(/\n/g, '').replace(/\r/g, '');
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            setTimeout(() => {
+              el.dataset.autoSend = "true";
+              el.disabled = false;
+              el.focus(); 
+              const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+              el.dispatchEvent(enterEvent);
+              showToast("✨ 发送成功！");
+            }, 150);
+
+          } catch (err) {
+            showToast("发生错误，请重试");
+            el.disabled = false;
+            el.focus();
           }
         }
       }
     }
   }, true);
 
+  // 注册控制台 UI
   window.RochePlugin.register({
-    id: "roche-xhs-parser",
-    name: "📕 小红书无图极简版",
-    version: "9.0.0",
+    id: "roche-universal-parser",
+    name: "🌍 全网视觉中枢",
+    version: "11.0.0",
     apps: [
       {
-        id: "roche-xhs-parser-home",
-        name: "控制台",
-        icon: "extension",
+        id: "universal-parser-home",
+        name: "副 API 设置",
+        icon: "settings",
         async mount(container, roche) {
-          container.innerHTML = `<div style="padding: 20px;">
-            <h2 style="color: #ff2442;">📕 极速高定纯文本版 v9.0</h2>
-            <p>已彻底剔除无效图片模块，单发完美卡片，AI可穿透阅读源码。</p>
-          </div>`;
+          // 加载配置
+          let config = { ...defaultConfig, ...(await roche.storage.get("xhs_vision_config")) };
+
+          container.innerHTML = `
+            <div style="padding: 20px; font-family: system-ui; color: var(--roche-text-primary, #333);">
+              <h2 style="color: #007bff; margin-bottom: 20px;">🌍 全网智能视觉分享中枢</h2>
+              <p style="font-size:13px; color:#666; margin-bottom: 20px;">支持自动识别任意网址并渲染专属 UI。开启下方副 API 后，即可实现后台画面的静默识别。</p>
+              
+              <div style="background: rgba(100,100,100,0.1); padding: 15px; border-radius: 8px;">
+                <label style="display: flex; align-items: center; font-weight: bold; cursor: pointer; margin-bottom: 15px;">
+                  <input type="checkbox" id="cfg-enable" ${config.enabled ? 'checked' : ''} style="margin-right: 10px; transform: scale(1.2);">
+                  启用独立视觉副 API
+                </label>
+                
+                <div id="api-settings" style="display: ${config.enabled ? 'block' : 'none'};">
+                  <div style="margin-bottom: 12px;">
+                    <div style="font-size: 12px; margin-bottom: 4px;">Endpoint (兼容 OpenAI 格式)</div>
+                    <input type="text" id="cfg-ep" value="${config.endpoint}" placeholder="https://api.openai.com/v1" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                  </div>
+                  
+                  <div style="margin-bottom: 12px;">
+                    <div style="font-size: 12px; margin-bottom: 4px;">API Key</div>
+                    <input type="password" id="cfg-key" value="${config.apiKey}" placeholder="sk-..." style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                  </div>
+                  
+                  <div style="margin-bottom: 12px; display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                      <div style="font-size: 12px; margin-bottom: 4px;">选择视觉模型</div>
+                      <select id="cfg-model" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        <option value="${config.model}">${config.model || '点击右侧获取模型'}</option>
+                      </select>
+                    </div>
+                    <button id="btn-fetch" style="margin-top: 18px; padding: 0 15px; background: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer;">刷新获取模型</button>
+                  </div>
+                </div>
+                
+                <button id="btn-save" style="width: 100%; padding: 10px; margin-top: 10px; background: #28a745; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+                  💾 保存配置
+                </button>
+              </div>
+            </div>
+          `;
+
+          const checkEnable = container.querySelector('#cfg-enable');
+          const settingsDiv = container.querySelector('#api-settings');
+          const epInput = container.querySelector('#cfg-ep');
+          const keyInput = container.querySelector('#cfg-key');
+          const modelSelect = container.querySelector('#cfg-model');
+          const fetchBtn = container.querySelector('#btn-fetch');
+          const saveBtn = container.querySelector('#btn-save');
+
+          // 开关联动
+          checkEnable.addEventListener('change', (e) => {
+            settingsDiv.style.display = e.target.checked ? 'block' : 'none';
+          });
+
+          // 获取模型列表
+          fetchBtn.addEventListener('click', async () => {
+            let ep = epInput.value.trim().replace(/\/v1\/?$/, '').replace(/\/$/, '');
+            let key = keyInput.value.trim();
+            if(!ep || !key) return roche.ui.toast("请先填写 Endpoint 和 API Key");
+            
+            fetchBtn.innerText = "获取中...";
+            try {
+              const res = await fetch(`${ep}/v1/models`, { headers: { 'Authorization': `Bearer ${key}` } });
+              const data = await res.json();
+              if(data.data) {
+                modelSelect.innerHTML = data.data.map(m => `<option value="${m.id}" ${m.id === config.model ? 'selected' : ''}>${m.id}</option>`).join('');
+                roche.ui.toast("获取模型成功！请确保选择的是支持视觉(Vision)的模型。");
+              } else {
+                throw new Error("格式错误");
+              }
+            } catch (err) {
+              roche.ui.toast("获取失败，请检查连通性或跨域限制。");
+            }
+            fetchBtn.innerText = "刷新获取模型";
+          });
+
+          // 保存配置
+          saveBtn.addEventListener('click', async () => {
+            config = {
+              enabled: checkEnable.checked,
+              endpoint: epInput.value.trim(),
+              apiKey: keyInput.value.trim(),
+              model: modelSelect.value || epInput.value.trim() // 防止空模型
+            };
+            await roche.storage.set("xhs_vision_config", config);
+            roche.ui.toast("设置已保存！去主页发送链接试试吧~");
+          });
         },
         async unmount(container, roche) {
           container.replaceChildren();
