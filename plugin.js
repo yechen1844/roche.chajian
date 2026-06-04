@@ -1,29 +1,609 @@
 /**
- * Roche Hub 悬浮球 v1.0.1
+ * Roche Hub 悬浮球 v1.0.2 — 白金极光版
  * 全局悬浮球中心 — 统一入口、快捷跳转、子插件托管、全局心跳引擎
  *
- * 修复：
- * - 移除所有 ES2015+ Unicode 转义 \u{...}，替换为直接 emoji 字符
- *   解决 Roche WebView "Invalid or unexpected token" 报错
+ * v1.0.2 更新：
+ *   - UI 全面升级：白金极光与神圣典雅美学（Pearl Glassmorphism）
+ *   - 新增返回/退出按钮，解决无法退出 App 的问题
+ *   - 快捷方式改为下拉选择器（自动从API获取角色列表/App列表）
+ *   - 纯 ES5 语法，兼容旧版 WebView
  */
 ;(function () {
   'use strict'
 
   /* ════════════════════════════════════════════════════════════
-     CSS 样式 — 精致优雅的视觉系统
+     CSS — 白金极光与神圣典雅美学 (Pearl & Sacred Elegance)
      ════════════════════════════════════════════════════════════ */
 
-  var CSS = '.roche-hub-ball{position:fixed;z-index:2147483646;width:50px;height:50px;border-radius:50%;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#7C3AED 0%,#2563EB 50%,#06B6D4 100%);box-shadow:0 2px 12px rgba(124,58,237,.4),0 0 24px rgba(124,58,237,.15),inset 0 1px 1px rgba(255,255,255,.2);transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s ease;will-change:transform,left,top}.roche-hub-ball:active{cursor:grabbing;transform:scale(1.08);box-shadow:0 4px 20px rgba(124,58,237,.5),0 0 40px rgba(124,58,237,.2)}.roche-hub-ball:hover{box-shadow:0 4px 20px rgba(124,58,237,.5),0 0 40px rgba(124,58,237,.25)}.roche-hub-ball-inner{width:100%;height:100%;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;background-size:cover;background-position:center;background-repeat:no-repeat}.roche-hub-ball-icon{font-size:22px;color:#fff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));line-height:1;pointer-events:none}@keyframes rocheHubPulse{0%{box-shadow:0 0 0 0 rgba(124,58,237,.45)}60%{box-shadow:0 0 0 10px rgba(124,58,237,0)}100%{box-shadow:0 0 0 0 rgba(124,58,237,0)}}.roche-hub-ball.idle-pulse{animation:rocheHubPulse 2.5s ease-in-out infinite}.roche-hub-ball.idle-pulse:hover,.roche-hub-ball.idle-pulse:active{animation:none}.roche-hub-overlay{position:fixed;inset:0;z-index:2147483645;background:rgba(0,0,0,.35);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .28s ease}.roche-hub-overlay.visible{opacity:1;pointer-events:auto}.roche-hub-menu{position:fixed;z-index:2147483647;pointer-events:none}.roche-hub-menu-item{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:auto;cursor:pointer;opacity:0;transform:scale(.3);transition:opacity .3s ease,transform .35s cubic-bezier(.34,1.56,.64,1)}.roche-hub-menu-item.show{opacity:1;transform:scale(1)}.roche-hub-menu-btn{width:44px;height:44px;border-radius:50%;background:rgba(30,30,42,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:#E2E8F0;font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.06);transition:transform .2s ease,background .2s ease,box-shadow .2s ease}.roche-hub-menu-btn:hover{transform:scale(1.12);background:rgba(55,55,75,.95);box-shadow:0 4px 14px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.08)}.roche-hub-menu-btn:active{transform:scale(.95)}.roche-hub-menu-label{font-size:11px;color:#E2E8F0;text-shadow:0 1px 3px rgba(0,0,0,.7);white-space:nowrap;pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:.02em}.roche-hub-app{--hub-bg:#0f0f14;--hub-surface:#1a1a24;--hub-surface2:#222230;--hub-border:rgba(255,255,255,.07);--hub-text:#E2E8F0;--hub-text2:#94A3B8;--hub-accent:#7C3AED;--hub-accent2:#06B6D4;--hub-radius:14px;height:100%;overflow-y:auto;overflow-x:hidden;background:var(--hub-bg);color:var(--hub-text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-overflow-scrolling:touch}.roche-hub-app::-webkit-scrollbar{width:4px}.roche-hub-app::-webkit-scrollbar-thumb{background:rgba(124,58,237,.3);border-radius:4px}.roche-hub-header{padding:28px 24px 20px;text-align:center;background:linear-gradient(180deg,rgba(124,58,237,.12) 0%,transparent 100%);border-bottom:1px solid var(--hub-border)}.roche-hub-logo{width:56px;height:56px;border-radius:18px;background:linear-gradient(135deg,#7C3AED,#2563EB,#06B6D4);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:26px;box-shadow:0 4px 16px rgba(124,58,237,.3)}.roche-hub-title{font-size:20px;font-weight:700;margin:0 0 4px;letter-spacing:-.02em}.roche-hub-subtitle{font-size:13px;color:var(--hub-text2);margin:0}.roche-hub-section{margin:16px 16px 0;background:var(--hub-surface);border-radius:var(--hub-radius);border:1px solid var(--hub-border);overflow:hidden}.roche-hub-section-title{font-size:12px;font-weight:600;color:var(--hub-text2);text-transform:uppercase;letter-spacing:.08em;padding:14px 18px 8px;display:flex;align-items:center;gap:8px}.roche-hub-section-title .icon{font-size:15px}.roche-hub-row{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--hub-border);transition:background .15s ease}.roche-hub-row:last-child{border-bottom:none}.roche-hub-row:active{background:rgba(255,255,255,.03)}.roche-hub-row-label{font-size:14px;font-weight:500;flex:1}.roche-hub-row-desc{font-size:11px;color:var(--hub-text2);margin-top:2px}.roche-hub-row-value{font-size:13px;color:var(--hub-accent2);font-weight:600}.roche-hub-slider-wrap{flex:1;max-width:140px;margin-left:12px}.roche-hub-slider{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:var(--hub-surface2);outline:none}.roche-hub-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,var(--hub-accent),var(--hub-accent2));cursor:pointer;box-shadow:0 2px 6px rgba(124,58,237,.4);transition:transform .15s ease}.roche-hub-slider::-webkit-slider-thumb:hover{transform:scale(1.15)}.roche-hub-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,var(--hub-accent),var(--hub-accent2));cursor:pointer;border:none;box-shadow:0 2px 6px rgba(124,58,237,.4)}.roche-hub-color-picker{-webkit-appearance:none;appearance:none;width:32px;height:32px;border:2px solid var(--hub-border);border-radius:50%;cursor:pointer;padding:0;overflow:hidden}.roche-hub-color-picker::-webkit-color-swatch-wrapper{padding:0}.roche-hub-color-picker::-webkit-color-swatch{border:none;border-radius:50%}.roche-hub-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px;border:1px solid var(--hub-border);background:var(--hub-surface2);color:var(--hub-text);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s ease;font-family:inherit}.roche-hub-btn:hover{background:rgba(124,58,237,.15);border-color:rgba(124,58,237,.3)}.roche-hub-btn:active{transform:scale(.97)}.roche-hub-btn-primary{background:linear-gradient(135deg,var(--hub-accent),#2563EB);border:none;color:#fff}.roche-hub-btn-primary:hover{box-shadow:0 4px 12px rgba(124,58,237,.35)}.roche-hub-btn-danger{color:#F87171;border-color:rgba(248,113,113,.2)}.roche-hub-btn-danger:hover{background:rgba(248,113,113,.1);border-color:rgba(248,113,113,.35)}.roche-hub-btn-sm{padding:5px 12px;font-size:12px;border-radius:8px}.roche-hub-shortcut-item{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid var(--hub-border);transition:background .15s ease}.roche-hub-shortcut-item:last-child{border-bottom:none}.roche-hub-shortcut-item:active{background:rgba(255,255,255,.03)}.roche-hub-sc-icon{width:36px;height:36px;border-radius:10px;background:var(--hub-surface2);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}.roche-hub-sc-info{flex:1;min-width:0}.roche-hub-sc-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.roche-hub-sc-type{font-size:11px;color:var(--hub-text2);margin-top:1px}.roche-hub-sc-actions{display:flex;gap:4px;flex-shrink:0}.roche-hub-sc-action-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--hub-border);background:transparent;color:var(--hub-text2);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s ease}.roche-hub-sc-action-btn:hover{background:var(--hub-surface2);color:var(--hub-text)}.roche-hub-sc-action-btn.danger:hover{background:rgba(248,113,113,.1);color:#F87171;border-color:rgba(248,113,113,.2)}.roche-hub-modal-mask{position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s ease;padding:24px}.roche-hub-modal-mask.show{opacity:1;pointer-events:auto}.roche-hub-modal{width:100%;max-width:380px;max-height:80vh;background:var(--hub-surface);border-radius:18px;border:1px solid var(--hub-border);overflow:hidden;transform:translateY(16px) scale(.97);transition:transform .3s cubic-bezier(.34,1.56,.64,1);display:flex;flex-direction:column}.roche-hub-modal-mask.show .roche-hub-modal{transform:translateY(0) scale(1)}.roche-hub-modal-header{padding:18px 20px 14px;border-bottom:1px solid var(--hub-border);display:flex;align-items:center;justify-content:space-between}.roche-hub-modal-title{font-size:16px;font-weight:700;margin:0}.roche-hub-modal-close{width:30px;height:30px;border-radius:8px;border:none;background:transparent;color:var(--hub-text2);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s ease}.roche-hub-modal-close:hover{background:rgba(255,255,255,.06);color:var(--hub-text)}.roche-hub-modal-body{padding:16px 20px;overflow-y:auto;flex:1}.roche-hub-modal-footer{padding:14px 20px;border-top:1px solid var(--hub-border);display:flex;justify-content:flex-end;gap:8px}.roche-hub-input,.roche-hub-select,.roche-hub-textarea{width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--hub-border);background:var(--hub-bg);color:var(--hub-text);font-size:14px;font-family:inherit;outline:none;transition:border-color .2s ease,box-shadow .2s ease;box-sizing:border-box}.roche-hub-input:focus,.roche-hub-select:focus,.roche-hub-textarea:focus{border-color:var(--hub-accent);box-shadow:0 0 0 3px rgba(124,58,237,.15)}.roche-hub-select{cursor:pointer;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2394A3B8\' stroke-width=\'2\'%3E%3Cpath d=\'M6 9l6 6 6-6\'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}.roche-hub-textarea{resize:vertical;min-height:72px;line-height:1.5}.roche-hub-form-group{margin-bottom:14px}.roche-hub-form-label{display:block;font-size:12px;font-weight:600;color:var(--hub-text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}.roche-hub-switch{position:relative;width:44px;height:24px;flex-shrink:0}.roche-hub-switch input{display:none}.roche-hub-switch-track{position:absolute;inset:0;background:var(--hub-surface2);border-radius:12px;cursor:pointer;transition:background .25s ease;border:1px solid var(--hub-border)}.roche-hub-switch-knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--hub-text2);transition:transform .25s cubic-bezier(.34,1.56,.64,1),background .25s ease}.roche-hub-switch input:checked+.track{background:var(--hub-accent);border-color:var(--hub-accent)}.roche-hub-switch input:checked+.track .knob{transform:translateX(20px);background:#fff}.roche-hub-empty{padding:32px 20px;text-align:center;color:var(--hub-text2);font-size:13px}.roche-hub-empty-icon{font-size:36px;margin-bottom:10px;opacity:.5}.roche-hub-safe-bottom{height:env(safe-area-inset-bottom,24px)}.roche-hub-hint{font-size:11px;color:var(--hub-text2);padding:8px 18px 12px;line-height:1.5;opacity:.8}.roche-hub-preview-img{width:60px;height:60px;border-radius:14px;object-fit:cover;border:2px solid var(--hub-border)}'
+  var CSS = [
+    '',
+    '/* ── 悬浮球本体：冰晶玻璃球体 ── */',
+    '.roche-hub-ball {',
+    '  position: fixed;',
+    '  z-index: 2147483646;',
+    '  width: 52px; height: 52px;',
+    '  border-radius: 50%;',
+    '  cursor: grab;',
+    '  user-select: none; -webkit-user-select: none;',
+    '  touch-action: none;',
+    '  display: flex; align-items: center; justify-content: center;',
+    '  background: linear-gradient(135deg,',
+    '    rgba(255,245,240,0.95) 0%,',
+    '    rgba(250,235,245,0.92) 30%,',
+    '    rgba(235,245,255,0.92) 70%,',
+    '    rgba(245,248,255,0.95) 100%);',
+    '  box-shadow:',
+    '    0 2px 16px rgba(180,160,200,0.25),',
+    '    0 0 32px rgba(220,190,230,0.12),',
+    '    inset 0 1px 2px rgba(255,255,255,0.9),',
+    '    inset 0 -2px 6px rgba(200,180,210,0.15);',
+    '  border: 1px solid rgba(255,255,255,0.7);',
+    '  transition: transform .35s cubic-bezier(.34,1.56,.64,1),',
+    '              box-shadow .4s ease;',
+    '  will-change: transform, left, top;',
+    '}',
+    '.roche-hub-ball:active { cursor: grabbing; }',
+    '.roche-hub-ball:hover {',
+    '  box-shadow:',
+    '    0 4px 24px rgba(180,160,200,0.35),',
+    '    0 0 48px rgba(220,190,230,0.18),',
+    '    inset 0 1px 2px rgba(255,255,255,0.95);',
+    '}',
+
+    '/* 球内图标 */',
+    '.roche-hub-ball-inner {',
+    '  width: 100%; height: 100%;',
+    '  border-radius: 50%;',
+    '  display: flex; align-items: center; justify-content: center;',
+    '  overflow: hidden;',
+    '  background-size: cover; background-position: center;',
+    '  background-repeat: no-repeat;',
+    '}',
+    '.roche-hub-ball-icon {',
+    '  font-size: 20px; line-height: 1;',
+    '  color: #8B7AA0;',
+    '  filter: drop-shadow(0 1px 2px rgba(140,120,160,0.3));',
+    '  pointer-events: none;',
+    '}',
+
+    '/* 呼吸光环（待机脉冲） */',
+    '@keyframes rocheHubBreath {',
+    '  0%   { box-shadow: 0 0 0 0 rgba(200,170,210,0.35),',
+    '                   0 0 20px rgba(220,195,230,0.08); }',
+    '  40%  { box-shadow: 0 0 0 14px rgba(200,170,210,0.10),',
+    '                   0 0 36px rgba(220,195,230,0.04); }',
+    '  100% { box-shadow: 0 0 0 0 rgba(200,170,210,0.35),',
+    '                   0 0 20px rgba(220,195,230,0.08); }',
+    '}',
+    '.roche-hub-ball.idle-pulse { animation: rocheHubBreath 3s ease-in-out infinite; }',
+    '.roche-hub-ball.idle-pulse:hover,',
+    '.roche-hub-ball.idle-pulse:active { animation: none; }',
+
+    '/* ── 遮罩层：柔焦散景 ── */',
+    '.roche-hub-overlay {',
+    '  position: fixed; inset: 0;',
+    '  z-index: 2147483645;',
+    '  background: radial-gradient(circle at center,',
+    '    rgba(255,250,250,0.15) 0%,',
+    '    rgba(240,232,245,0.45) 60%,',
+    '    rgba(220,208,230,0.55) 100%);',
+    '  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);',
+    '  opacity: 0; pointer-events: none;',
+    '  transition: opacity .4s cubic-bezier(.4,0,.2,1);',
+    '}',
+    '.roche-hub-overlay.visible { opacity: 1; pointer-events: auto; }',
+
+    '/* ── 放射菜单容器 ── */',
+    '.roche-hub-menu { position: fixed; z-index: 2147483647; pointer-events: none; }',
+    '.roche-hub-menu-item {',
+    '  position: absolute;',
+    '  display: flex; flex-direction: column; align-items: center; gap: 5px;',
+    '  pointer-events: auto; cursor: pointer;',
+    '  opacity: 0; transform: scale(.25) translateY(8px);',
+    '  transition: opacity .4s ease, transform .5s cubic-bezier(.34,1.56,.64,1);',
+    '}',
+    '.roche-hub-menu-item.show { opacity: 1; transform: scale(1) translateY(0); }',
+
+    '/* 菜单按钮：冰晶玻璃 */',
+    '.roche-hub-menu-btn {',
+    '  width: 46px; height: 46px; border-radius: 50%;',
+    '  background: linear-gradient(145deg,',
+    '    rgba(255,255,255,0.85) 0%,',
+    '    rgba(250,245,252,0.80) 50%,',
+    '    rgba(242,238,248,0.82) 100%);',
+    '  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);',
+    '  border: 1px solid rgba(255,255,255,0.65);',
+    '  box-shadow:',
+    '    0 3px 12px rgba(180,165,200,0.18),',
+    '    inset 0 1px 2px rgba(255,255,255,0.9),',
+    '    inset 0 -1px 3px rgba(200,185,215,0.12);',
+    '  display: flex; align-items: center; justify-content: center;',
+    '  color: #7A6890; font-size: 17px;',
+    '  transition: transform .35s cubic-bezier(.34,1.56,.64,1),',
+    '              box-shadow .3s ease, background .3s ease;',
+    '}',
+    '.roche-hub-menu-btn:hover {',
+    '  transform: scale(1.12) translateY(-2px);',
+    '  background: linear-gradient(145deg,',
+    '    rgba(255,252,250,0.95) 0%,',
+    '    rgba(252,246,252,0.90) 100%);',
+    '  box-shadow:',
+    '    0 6px 22px rgba(180,165,200,0.28),',
+    '    0 0 18px rgba(220,195,230,0.15),',
+    '    inset 0 1px 2px rgba(255,255,255,1);',
+    '  color: #6A5878;',
+    '}',
+    '.roche-hub-menu-btn:active { transform: scale(.94); }',
+    '.roche-hub-menu-label {',
+    '  font-size: 11px; color: #8B7A9E;',
+    '  text-shadow: 0 1px 4px rgba(255,255,255,0.8);',
+    '  white-space: nowrap; pointer-events: none;',
+    '  font-family: -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;',
+    '  letter-spacing:.03em; font-weight:500;',
+    '}',
+
+    '/* ── App 视图：白金极光面板 ── */',
+    '.rh-app {',
+    '  --pearl-bg: rgba(252,248,252,0.96);',
+    '  --pearl-surface: rgba(255,255,255,0.78);',
+    '  --pearl-surface2: rgba(248,244,250,0.88);',
+    '  --pearl-border: rgba(220,205,225,0.35);',
+    '  --pearl-text: #4A3F54;',
+    '  --pearl-text2: #8B7A9E;',
+    '  --pearl-accent: #B89AC8;',
+    '  --pearl-accent2: #8EB4D8;',
+    '  --pearl-rose: #D4A0AD;',
+    '  --pearl-gold: #C8B89A;',
+    '  --pearl-r: 18px;',
+    '',
+    '  height: 100%; overflow-y: auto; overflow-x: hidden;',
+    '  background:',
+    '    radial-gradient(ellipse 80% 50% at 20% 0%, rgba(212,160,173,0.07) 0%, transparent 60%),',
+    '    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(142,180,216,0.06) 0%, transparent 55%),',
+    '    linear-gradient(175deg, #FAF6FB 0%, #F5F0F7 40%, #FDF8FA 100%);',
+    '  color: var(--pearl-text);',
+    '  font-family: -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;',
+    '  -webkit-overflow-scrolling: touch;',
+    '}',
+    '.rh-app::-webkit-scrollbar { width: 3px; }',
+    '.rh-app::-webkit-scrollbar-thumb {',
+    '  background: rgba(184,154,200,0.3); border-radius: 3px;',
+    '}',
+
+    '/* 头部：仪式感区域 */',
+    '.rh-header {',
+    '  padding: 32px 24px 26px; text-align: center;',
+    '  position: relative; overflow: hidden;',
+    '  background: linear-gradient(180deg,',
+    '    rgba(212,160,173,0.06) 0%, transparent 70%);',
+    '}',
+    '/* 头部呼吸光斑 */',
+    '.rh-header::before {',
+    '  content: ""; position: absolute;',
+    '  top: -30px; left: 50%; transform: translateX(-50%);',
+    '  width: 180px; height: 180px;',
+    '  background: radial-gradient(circle, rgba(212,160,173,0.12) 0%, transparent 75%);',
+    '  filter: blur(40px); animation: rhHeaderGlow 8s ease-in-out infinite alternate;',
+    '  pointer-events: none;',
+    '}',
+    '@keyframes rhHeaderGlow {',
+    '  0% { opacity: .5; transform: translateX(-50%) scale(1); }',
+    '  100% { opacity: 1; transform: translateX(-50%) scale(1.15); }',
+    '}',
+    '.rh-header-inner { position: relative; z-index: 1; }',
+    '.rh-logo {',
+    '  width: 60px; height: 60px; border-radius: 22px;',
+    '  background: linear-gradient(145deg,',
+    '    rgba(255,250,252,0.95) 0%,',
+    '    rgba(248,240,250,0.90) 50%,',
+    '    rgba(235,245,255,0.88) 100%);',
+    '  display: flex; align-items: center; justify-content: center;',
+    '  margin: 0 auto 16px; font-size: 26px;',
+    '  box-shadow:',
+    '    0 4px 20px rgba(184,154,200,0.2),',
+    '    0 0 40px rgba(212,160,173,0.08),',
+    '    inset 0 1px 2px rgba(255,255,255,0.95),',
+    '    inset 0 -2px 6px rgba(200,185,215,0.10);',
+    '  border: 1px solid rgba(255,255,255,0.6);',
+    '  color: #8B7AA0;',
+    '}',
+    '.rh-title {',
+    '  font-size: 21px; font-weight: 700;',
+    '  margin: 0 0 5px; letter-spacing:-.02em;',
+    '  color: var(--pearl-text);',
+    '}',
+    '.rh-subtitle {',
+    '  font-size: 13px; color: var(--pearl-text2);',
+    '  margin: 0; letter-spacing:.03em; font-weight:400;',
+    '}',
+
+    '/* 返回按钮 */',
+    '.rh-back-btn {',
+    '  display: inline-flex; align-items: center; gap: 6px;',
+    '  padding: 8px 18px; border-radius: 12px;',
+    '  border: 1px solid var(--pearl-border);',
+    '  background: var(--pearl-surface);',
+    '  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);',
+    '  color: var(--pearl-text2); font-size: 13px; font-weight: 600;',
+    '  cursor: pointer; transition: all .3s cubic-bezier(.4,0,.2,1);',
+    '  font-family: inherit; margin-top: 16px;',
+    '  box-shadow: 0 2px 8px rgba(180,165,200,0.08),',
+    '              inset 0 1px 1px rgba(255,255,255,0.7);',
+    '}',
+    '.rh-back-btn:hover {',
+    '  background: rgba(255,255,255,0.92);',
+    '  border-color: rgba(200,185,215,0.45);',
+    '  box-shadow: 0 4px 14px rgba(180,165,200,0.14),',
+    '              inset 0 1px 1px rgba(255,255,255,0.9);',
+    '  color: var(--pearl-text);',
+    '}',
+    '.rh-back-btn:active { transform: scale(.96); }',
+
+    '/* 分区卡片：玻璃切片 */',
+    '.rh-section {',
+    '  margin: 20px 16px 0;',
+    '  background: linear-gradient(160deg,',
+    '    rgba(255,255,255,0.72) 0%,',
+    '    rgba(252,248,252,0.68) 100%);',
+    '  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);',
+    '  border-radius: var(--pearl-r);',
+    '  border: 1px solid var(--pearl-border);',
+    '  box-shadow:',
+    '    0 2px 16px rgba(180,165,200,0.06),',
+    '    inset 0 1px 1px rgba(255,255,255,0.6);',
+    '  overflow: hidden;',
+    '  position: relative;',
+    '}',
+    '/* 卡片角落呼吸光 */',
+    '.rh-section::before {',
+    '  content:""; position:absolute; bottom:0; right:0;',
+    '  width:80px; height:80px;',
+    '  background:radial-gradient(circle,rgba(142,180,216,0.05) 0%,transparent 70%);',
+    '  filter:blur(20px); pointer-events:none;',
+    '}',
+    '.rh-section-title {',
+    '  font-size: 11px; font-weight: 700;',
+    '  color: var(--pearl-text2);',
+    '  text-transform: uppercase; letter-spacing:.1em;',
+    '  padding: 16px 20px 10px;',
+    '  display: flex; align-items: center; gap: 8px;',
+    '}',
+    '.rh-section-title .rh-icon { font-size: 14px; }',
+    '/* 标题装饰线 */',
+    '.rh-section-title::after {',
+    '  content:""; flex:1; height:1px;',
+    '  background: linear-gradient(90deg, var(--pearl-border), transparent);',
+    '  margin-left: 10px;',
+    '}',
+
+    '/* 设置行 */',
+    '.rh-row {',
+    '  display: flex; align-items: center; justify-content: space-between;',
+    '  padding: 14px 20px;',
+    '  border-bottom: 1px solid rgba(220,205,225,0.25);',
+    '  transition: background .3s ease;',
+    '}',
+    '.rh-row:last-child { border-bottom: none; }',
+    '.rh-row:hover { background: rgba(255,255,255,0.35); }',
+    '.rh-row-label { font-size: 14px; font-weight: 600; color: var(--pearl-text); flex:1; }',
+    '.rh-row-desc {',
+    '  font-size: 11px; color: var(--pearl-text2);',
+    '  margin-top: 3px; line-height: 1.5;',
+    '}',
+    '.rh-row-val { font-size: 13px; color: var(--pearl-accent2); font-weight: 600; }',
+
+    '/* 滑块 */',
+    '.rh-slider-wrap { flex:1; max-width: 130px; margin-left: 14px; }',
+    '.rh-slider {',
+    '  -webkit-appearance:none; appearance:none; width:100%;',
+    '  height: 3px; border-radius: 2px;',
+    '  background: linear-gradient(90deg,',
+    '    rgba(184,154,200,0.15) 0%,',
+    '    rgba(142,180,216,0.20) 100%);',
+    '  outline:none;',
+    '}',
+    '.rh-slider::-webkit-slider-thumb {',
+    '  -webkit-appearance:none; appearance:none;',
+    '  width: 18px; height: 18px; border-radius: 50%;',
+    '  background: linear-gradient(145deg, #FFF 0%, #F5F0F7 100%);',
+    '  cursor:pointer; border: 2px solid rgba(184,154,200,0.35);',
+    '  box-shadow: 0 2px 8px rgba(180,165,200,0.2),',
+    '              inset 0 1px 1px rgba(255,255,255,0.9);',
+    '  transition: transform .2s cubic-bezier(.34,1.56,.64,1),',
+    '              box-shadow .2s ease;',
+    '}',
+    '.rh-slider::-webkit-slider-thumb:hover {',
+    '  transform: scale(1.18);',
+    '  box-shadow: 0 3px 12px rgba(180,165,200,0.3),',
+    '              inset 0 1px 1px rgba(255,255,255,1);',
+    '}',
+
+    '/* 颜色选择器 */',
+    '.rh-color-picker {',
+    '  -webkit-appearance:none; appearance:none;',
+    '  width: 30px; height: 30px; border-radius: 50%;',
+    '  cursor:pointer; padding:0; overflow:hidden;',
+    '  border: 2px solid rgba(220,205,225,0.4);',
+    '  box-shadow: 0 2px 6px rgba(180,165,200,0.1),',
+    '              inset 0 1px 1px rgba(255,255,255,0.5);',
+    '  transition: border-color .2s ease, transform .2s ease;',
+    '}',
+    '.rh-color-picker:hover { border-color: rgba(184,154,200,0.5); transform: scale(1.08); }',
+    '.rh-color-picker::-webkit-color-swatch-wrapper { padding:0; }',
+    '.rh-color-picker::-webkit-color-swatch { border:none; border-radius:50%; }',
+
+    '/* 按钮 */',
+    '.rh-btn {',
+    '  display:inline-flex; align-items:center; gap:6px;',
+    '  padding: 9px 18px; border-radius: 11px;',
+    '  border: 1px solid var(--pearl-border);',
+    '  background: linear-gradient(160deg,',
+    '    rgba(255,255,255,0.8) 0%,',
+    '    rgba(252,248,252,0.75) 100%);',
+    '  color: var(--pearl-text); font-size:13px; font-weight:600;',
+    '  cursor:pointer; transition: all .35s cubic-bezier(.4,0,.2,1);',
+    '  font-family:inherit;',
+    '  box-shadow: 0 2px 8px rgba(180,165,200,0.08),',
+    '              inset 0 1px 1px rgba(255,255,255,0.7);',
+    '}',
+    '.rh-btn:hover {',
+    '  background: linear-gradient(160deg,',
+    '    rgba(255,255,255,0.95) 0%,',
+    '    rgba(252,248,252,0.90) 100%);',
+    '  border-color: rgba(200,185,215,0.45);',
+    '  box-shadow: 0 4px 14px rgba(180,165,200,0.14),',
+    '              inset 0 1px 1px rgba(255,255,255,0.9);',
+    '}',
+    '.rh-btn:active { transform: scale(.96); }',
+    '.rh-btn-primary {',
+    '  background: linear-gradient(145deg,',
+    '    rgba(184,154,200,0.75) 0%,',
+    '    rgba(162,138,182,0.70) 100%);',
+    '  border-color: rgba(184,154,200,0.3);',
+    '  color: #fff; text-shadow: 0 1px 2px rgba(100,70,120,0.2);',
+    '  box-shadow: 0 3px 12px rgba(184,154,200,0.2),',
+    '              inset 0 1px 1px rgba(255,255,255,0.25);',
+    '}',
+    '.rh-btn-primary:hover {',
+    '  background: linear-gradient(145deg,',
+    '    rgba(184,154,200,0.88) 0%,',
+    '    rgba(162,138,182,0.82) 100%);',
+    '  box-shadow: 0 5px 18px rgba(184,154,200,0.3),',
+    '              inset 0 1px 1px rgba(255,255,255,0.35);',
+    '}',
+    '.rh-btn-danger {',
+    '  color: #C08090; border-color: rgba(212,128,144,0.25);',
+    '}',
+    '.rh-btn-danger:hover {',
+    '  background: rgba(212,128,144,0.06);',
+    '  border-color: rgba(212,128,144,0.38);',
+    '}',
+    '.rh-btn-sm { padding: 6px 14px; font-size: 12px; border-radius: 9px; }',
+
+    '/* 快捷项列表 */',
+    '.rh-sc-item {',
+    '  display:flex; align-items:center; gap:12px;',
+    '  padding: 12px 20px;',
+    '  border-bottom: 1px solid rgba(220,205,225,0.20);',
+    '  transition: background .3s ease;',
+    '}',
+    '.rh-sc-item:last-child { border-bottom: none; }',
+    '.rh-sc-item:hover { background: rgba(255,255,255,0.3); }',
+    '.rh-sc-icon-wrap {',
+    '  width:38px; height:38px; border-radius:12px;',
+    '  background: linear-gradient(160deg,',
+    '    rgba(255,255,255,0.7) 0%,',
+    '    rgba(248,244,250,0.6) 100%);',
+    '  display:flex; align-items:center; justify-content:center;',
+    '  font-size:16px; flex-shrink:0;',
+    '  border: 1px solid rgba(220,205,225,0.25);',
+    '  box-shadow: 0 2px 6px rgba(180,165,200,0.05),',
+    '              inset 0 1px 1px rgba(255,255,255,0.5);',
+    '  color: var(--pearl-accent);',
+    '}',
+    '.rh-sc-info { flex:1; min-width:0; }',
+    '.rh-sc-name {',
+    '  font-size:14px; font-weight:600; color:var(--pearl-text);',
+    '  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;',
+    '}',
+    '.rh-sc-type {',
+    '  font-size:11px; color:var(--pearl-text2); margin-top:2px;',
+    '}',
+    '.rh-sc-actions { display:flex; gap:5px; flex-shrink:0; }',
+    '.rh-sc-act-btn {',
+    '  width:30px; height:30px; border-radius:9px;',
+    '  border:1px solid var(--pearl-border);',
+    '  background:rgba(255,255,255,0.5);',
+    '  color:var(--pearl-text2); font-size:13px; cursor:pointer;',
+    '  display:flex; align-items:center; justify-content:center;',
+    '  transition:all .25s cubic-bezier(.4,0,.2,1);',
+    '  box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);',
+    '}',
+    '.rh-sc-act-btn:hover {',
+    '  background:rgba(255,255,255,0.85);',
+    '  color:var(--pearl-text);',
+    '  box-shadow: 0 2px 6px rgba(180,165,200,0.1);',
+    '}',
+    '.rh-sc-act-btn.danger:hover {',
+    '  background:rgba(212,128,144,0.06);',
+    '  color:#C08090; border-color:rgba(212,128,144,0.3);',
+    '}',
+
+    '/* 模态框 */',
+    '.rh-modal-mask {',
+    '  position:fixed; inset:0;',
+    '  z-index:2147483647;',
+    '  background: radial-gradient(circle at center,',
+    '    rgba(250,245,248,0.4) 0%,',
+    '    rgba(230,218,235,0.6) 100%);',
+    '  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);',
+    '  display:flex; align-items:center; justify-content:center;',
+    '  opacity:0; pointer-events:none;',
+    '  transition:opacity .4s cubic-bezier(.4,0,.2,1); padding:24px;',
+    '}',
+    '.rh-modal-mask.show { opacity:1; pointer-events:auto; }',
+    '.rh-modal {',
+    '  width:100%; max-width:390px; max-height:82vh;',
+    '  background: linear-gradient(175deg,',
+    '    rgba(255,252,252,0.97) 0%,',
+    '    rgba(250,246,252,0.95) 100%);',
+    '  border-radius: 20px;',
+    '  border: 1px solid rgba(220,205,225,0.3);',
+    '  box-shadow:',
+    '    0 8px 40px rgba(180,165,200,0.15),',
+    '    0 0 80px rgba(212,160,173,0.06),',
+    '    inset 0 1px 1px rgba(255,255,255,0.8);',
+    '  overflow:hidden;',
+    '  transform:translateY(20px) scale(.96);',
+    '  transition:transform .5s cubic-bezier(.34,1.56,.64,1);',
+    '  display:flex; flex-direction:column;',
+    '}',
+    '.rh-modal-mask.show .rh-modal { transform:translateY(0) scale(1); }',
+    '.rh-modal-head {',
+    '  padding:20px 22px 14px;',
+    '  border-bottom: 1px solid rgba(220,205,225,0.25);',
+    '  display:flex; align-items:center; justify-content:space-between;',
+    '}',
+    '.rh-modal-title { font-size:16px; font-weight:700; margin:0; color:var(--pearl-text); }',
+    '.rh-modal-close {',
+    '  width:32px; height:32px; border-radius:10px;',
+    '  border:1px solid var(--pearl-border);',
+    '  background:transparent; color:var(--pearl-text2);',
+    '  font-size:17px; cursor:pointer;',
+    '  display:flex; align-items:center; justify-content:center;',
+    '  transition:all .25s ease;',
+    '}',
+    '.rh-modal-close:hover {',
+    '  background:rgba(255,255,255,0.7); color:var(--pearl-text);',
+    '}',
+    '.rh-modal-body { padding:18px 22px; overflow-y:auto; flex:1; }',
+    '.rh-modal-foot {',
+    '  padding:14px 22px;',
+    '  border-top:1px solid rgba(220,205,225,0.25);',
+    '  display:flex; justify-content:flex-end; gap:8px;',
+    '}',
+
+    '/* 表单 */',
+    '.rh-input, .rh-select, .rh-textarea {',
+    '  width:100%; padding:11px 15px; border-radius:11px;',
+    '  border:1px solid var(--pearl-border);',
+    '  background: rgba(255,255,255,0.6);',
+    '  color:var(--pearl-text); font-size:14px; font-family:inherit;',
+    '  outline:none; transition:border-color .3s ease, box-shadow .3s ease;',
+    '  box-sizing:border-box;',
+    '  box-shadow: inset 0 1px 2px rgba(220,205,225,0.1);',
+    '}',
+    '.rh-input:focus, .rh-select:focus, .rh-textarea:focus {',
+    '  border-color: rgba(184,154,200,0.5);',
+    '  box-shadow: 0 0 0 3px rgba(184,154,200,0.1),',
+    '              inset 0 1px 2px rgba(220,205,225,0.08);',
+    '}',
+    '.rh-select {',
+    '  cursor:pointer; -webkit-appearance:none;',
+    '  background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'10\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%238B7A9E\' stroke-width=\'2.5\'%3E%3Cpath d=\'M6 9l6 6 6-6\'/%3E%3C/svg%3E");',
+    '  background-repeat:no-repeat; background-position:right 13px center;',
+    '  padding-right:34px;',
+    '}',
+    '.rh-textarea { resize:vertical; min-height:72px; line-height:1.6; }',
+    '.rh-fg { margin-bottom:16px; }',
+    '.rh-fg-label {',
+    '  display:block; font-size:11px; font-weight:700;',
+    '  color:var(--pearl-text2); margin-bottom:7px;',
+    '  text-transform:uppercase; letter-spacing:.06em;',
+    '}',
+
+    '/* 开关 */',
+    '.rh-switch { position:relative; width:46px; height:26px; flex-shrink:0; }',
+    '.rh-switch input { display:none; }',
+    '.rh-sw-track {',
+    '  position:absolute; inset:0;',
+    '  background:linear-gradient(160deg,',
+    '    rgba(220,210,228,0.6) 0%,',
+    '    rgba(210,200,222,0.5) 100%);',
+    '  border-radius:13px; cursor:pointer;',
+    '  transition:background .35s ease;',
+    '  border:1px solid rgba(200,188,215,0.3);',
+    '  box-shadow: inset 0 1px 2px rgba(180,165,200,0.1);',
+    '}',
+    '.rh-sw-knob {',
+    '  position:absolute; top:2.5px; left:2.5px;',
+    '  width:21px; height:21px; border-radius:50%;',
+    '  background:linear-gradient(145deg,#FFF 0%,#F8F4FA 100%);',
+    '  box-shadow: 0 2px 6px rgba(180,165,200,0.2),',
+    '              inset 0 1px 1px rgba(255,255,255,0.9);',
+    '  transition:transform .35s cubic-bezier(.34,1.56,.64,1);',
+    '}',
+    '.rh-sw-track.on {',
+    '  background:linear-gradient(160deg,',
+    '    rgba(184,154,200,0.7) 0%,',
+    '    rgba(162,138,182,0.65) 100%);',
+    '  border-color:rgba(184,154,200,0.35);',
+    '}',
+    '.rh-sw-track.on .rh-sw-knob { transform:translateX(20px); }',
+
+
+    '/* 空状态 */',
+    '.rh-empty {',
+    '  padding:36px 22px; text-align:center;',
+    '  color:var(--pearl-text2); font-size:13px;',
+    '  line-height:1.7;',
+    '}',
+    '.rh-empty-icon {',
+    '  font-size:38px; margin-bottom:12px;',
+    '  opacity:.35; display:inline-block;',
+    '}',
+    '.rh-safe-bottom { height:env(safe-area-inset-bottom,28px); }',
+    '.rh-hint {',
+    '  font-size:11px; color:var(--pearl-text2);',
+    '  padding:10px 20px 14px; line-height:1.6; opacity:.75;',
+    '}',
+    '.rh-preview-img {',
+    '  width:62px; height:62px; border-radius:16px;',
+    '  object-fit:cover; border:2px solid var(--pearl-border);',
+    '  box-shadow: 0 2px 8px rgba(180,165,200,0.1);',
+    '}',
+
+    '/* 加载动画 */',
+    '@keyframes rhSpin { to { transform: rotate(360deg); } }',
+    '.rh-loading {',
+    '  display:inline-block; width:16px; height:16px;',
+    '  border:2px solid rgba(184,154,200,0.2);',
+    '  border-top-color:rgba(184,154,200,0.6);',
+    '  border-radius:50%; animation:rhSpin .7s linear infinite;',
+    '  vertical-align:middle; margin-right:6px;',
+    '}',
+  ].join('\n')
+
+  /* ════════════════════════════════════════════════════════════
+     默认配置
+     ════════════════════════════════════════════════════════════ */
 
   var DEFAULTS = {
-    ball: { size: 50, opacity: 1, colorStart: '#7C3AED', colorMid: '#2563EB', colorEnd: '#06B6D4', customImage: '', shape: 'circle' },
-    menu: { radius: 100, itemSize: 44 },
-    heartbeat: { enabled: false, intervalMs: 60000 },
+    ball: {
+      size: 52,
+      opacity: 1,
+      customImage: '',
+      shape: 'circle',
+    },
+    menu: {
+      radius: 110,
+      itemSize: 46,
+    },
+    heartbeat: {
+      enabled: false,
+      intervalMs: 60000,
+    },
     shortcuts: [],
-    subPlugins: []
+    subPlugins: [],
   }
 
-  function uid() { return 'hub-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7) }
+  /* ════════════════════════════════════════════════════════════
+     工具函数
+     ════════════════════════════════════════════════════════════ */
+
+  function uid() {
+    return 'hub-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
+  }
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
   function deepMerge(target, source) {
     var out = Object.assign({}, target)
@@ -34,15 +614,50 @@
     }
     return out
   }
+  function escHtml(s) {
+    var d = document.createElement('div')
+    d.textContent = s
+    return d.innerHTML
+  }
   function radialPosition(index, total, radius, ballSize) {
     var startAngle, angleStep
-    if (total <= 4) { startAngle = -Math.PI * 5 / 6; angleStep = Math.PI * 4 / 6 / (total - 1 || 1) }
-    else if (total <= 8) { startAngle = -Math.PI * 17 / 18; angleStep = Math.PI * 16 / 18 / (total - 1 || 1) }
-    else { startAngle = -Math.PI * 3 / 4; angleStep = (Math.PI * 270 / 180) / (total - 1 || 1) }
+    if (total <= 4) {
+      startAngle = -Math.PI * 5 / 6
+      angleStep = Math.PI * 4 / 6 / (total - 1 || 1)
+    } else if (total <= 8) {
+      startAngle = -Math.PI * 17 / 18
+      angleStep = Math.PI * 16 / 18 / (total - 1 || 1)
+    } else {
+      startAngle = -Math.PI * 3 / 4
+      angleStep = (Math.PI * 270 / 180) / (total - 1 || 1)
+    }
     var angle = startAngle + angleStep * index
-    var r = radius + ballSize / 2 + 10
+    var r = radius + ballSize / 2 + 12
     return { x: Math.cos(angle) * r, y: Math.sin(angle) * r }
   }
+
+  /* 几何图标 SVG */
+  function svgIcon(type) {
+    var icons = {
+      settings: '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="3"/><path d="M10 2a1.5 1.5 0 010 3 1.5 1.5 0 000-3zm0 13a1.5 1.5 0 010 3 1.5 1.5 0 000-3zM3.2 5.8a1.5 1.5 0 01-.6 2 1.5 1.5 0 01-2-.6 1.5 1.5 0 01.6-2 1.5 1.5 0 012 .6zm13.6 8.4a1.5 1.5 0 01.6 2 1.5 1.5 0 01-2 .6 1.5 1.5 0 01-.6-2 1.5 1.5 0 012 0zM2 10a1.5 1.5 0 010 3H1.5a1.5 1.5 0 010-3H2zm16.5 0a1.5 1.5 0 010 3h-.5a1.5 1.5 0 010-3h.5zM3.2 14.2a1.5 1.5 0 01-2-.6 1.5 1.5 0 01.6-2 1.5 1.5 0 012 .6 1.5 1.5 0 01-.6 2zm13.6-8.4a1.5 1.5 0 012-.6 1.5 1.5 0 01-.6 2 1.5 1.5 0 01-2-.6 1.5 1.5 0 01.6-2z"/></svg>',
+      plus: '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 4v12M4 10h12"/></svg>',
+      link: '<svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 12a4 4 0 01-1-5.5L9 4.5a4 4 0 015.5 5.5L13 12m-2 2a4 4 0 001 5.5L11 15.5a4 4 0 01-5.5-5.5L7 8"/></svg>',
+      heart: '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 17s-7-4.4-7-9a4 4 0 017-2.5A4 4 0 0117 8c0 4.6-7 9-7 9z"/></svg>',
+      rocket: '<svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 16c0-2 1-4 3-6L12 5c3-2 5-3 5-3s-1 2-3 5l-5 5c-2 2-4 3-6 3z"/><circle cx="13" cy="7" r="1.5"/><path d="M4 16l-1 2 2-1m11-8l2-1-1 2"/></svg>',
+      user: '<svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="7" r="3.5"/><path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>',
+      app: '<svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg>',
+      code: '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M7 5l-4 5 4 5m6-10l4 5-4 5"/></svg>',
+      star: '\u2606',
+      edit: '&#9998;',
+      close: '&times;',
+      back: '<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 6l-6 6m0-6l6 6"/></svg>',
+    }
+    return icons[type] || ''
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     Hub 主类
+     ════════════════════════════════════════════════════════════ */
 
   function RocheHub(roche) {
     this.roche = roche
@@ -54,47 +669,69 @@
     this.styleEl = null
     this.isOpen = false
     this.isDragging = false
-    this.dragOffset = { x: 0, y: 0 }
     this.ballPos = { x: 0, y: 0 }
     this._heartbeatTimer = null
     this._heartbeatTasks = []
     this._boundHandlers = {}
     this._container = null
+    this._charList = []   // 缓存角色列表
+    this._appList = []    // 缓存App列表
   }
 
-  var _p = RocheHub.prototype
+  var p = RocheHub.prototype
 
-  _p.init = async function(container) {
+  /* ── 初始化 ── */
+  p.init = async function(container) {
     this._container = container
     await this._loadConfig()
     this._injectStyles()
     this._createBall()
     this._bindEvents()
+    await this._loadLists()
     if (this.config.heartbeat.enabled) this._startHeartbeat()
     this._renderAppView()
   }
 
-  _p._loadConfig = async function() {
+  /* ── 配置持久化 ── */
+  p._loadConfig = async function() {
     try { var s = await this.roche.storage.get('config'); this.config = deepMerge(DEFAULTS, s || {}) }
     catch (e) { console.warn('[RocheHub] load config failed', e); this.config = JSON.parse(JSON.stringify(DEFAULTS)) }
   }
-
-  _p._saveConfig = async function() {
+  p._saveConfig = async function() {
     try { await this.roche.storage.set('config', this.config) }
     catch (e) { console.warn('[RocheHub] save config failed', e) }
   }
 
-  _p._injectStyles = function() {
+  /* ── 加载角色和App列表 ── */
+  p._loadLists = async function() {
+    try {
+      // 尝试从 character API 获取角色列表
+      if (this.roche.character && typeof this.roche.character.list === 'function') {
+        this._charList = await this.roche.character.list() || []
+      }
+    } catch(e) { console.warn('[RocheHub] load char list failed', e) }
+    try {
+      // 尝试获取已安装的 App 列表
+      if (this.roche.ui && typeof this.roche.ui.getApps === 'function') {
+        this._appList = await this.roche.ui.getApps() || []
+      }
+    } catch(e) { console.warn('[RocheHub] load app list failed', e) }
+  }
+
+  /* ── 样式注入 ── */
+  p._injectStyles = function() {
     this.styleEl = document.createElement('style')
     this.styleEl.textContent = CSS
     document.head.appendChild(this.styleEl)
   }
 
-  _p._createBall = function() {
+  /* ── 悬浮球 ── */
+  p._createBall = function() {
     var self = this
     var ball = document.createElement('div')
     ball.className = 'roche-hub-ball idle-pulse'
     ball.id = 'roche-hub-ball'
+
     var inner = document.createElement('div')
     inner.className = 'roche-hub-ball-inner'
     if (this.config.ball.customImage) {
@@ -103,53 +740,59 @@
     } else {
       var icon = document.createElement('span')
       icon.className = 'roche-hub-ball-icon'
-      icon.textContent = '\u2606'
+      icon.innerHTML = svgIcon('star')
       inner.appendChild(icon)
     }
     ball.appendChild(inner)
+
     this._applyBallStyle(ball)
+
     var size = this.config.ball.size
     this.ballPos.x = window.innerWidth - size - 20
     this.ballPos.y = window.innerHeight - size - 100
     ball.style.left = this.ballPos.x + 'px'
     ball.style.top = this.ballPos.y + 'px'
+
     document.body.appendChild(ball)
     this.ballEl = ball
   }
 
-  _p._applyBallStyle = function(ball) {
+  p._applyBallStyle = function(ball) {
     var b = this.config.ball
     var s = b.size
     ball.style.width = s + 'px'
     ball.style.height = s + 'px'
     ball.style.opacity = b.opacity
     if (!b.customImage) {
-      ball.style.background = 'linear-gradient(135deg, ' + b.colorStart + ' 0%, ' + b.colorMid + ' 50%, ' + b.colorEnd + ' 100%)'
-    } else { ball.style.background = 'transparent' }
+      ball.style.background = 'linear-gradient(135deg, rgba(255,245,240,0.95) 0%, rgba(250,235,245,0.92) 30%, rgba(235,245,255,0.92) 70%, rgba(245,248,255,0.95) 100%)'
+    } else {
+      ball.style.background = 'transparent'
+    }
     switch (b.shape) {
-      case 'rounded': ball.style.borderRadius = '30%'; break
-      case 'square': ball.style.borderRadius = '12px'; break
+      case 'rounded': ball.style.borderRadius = '35%'; break
+      case 'square': ball.style.borderRadius = '14px'; break
       default: ball.style.borderRadius = '50%'
     }
   }
 
-  _p._bindEvents = function() {
+  /* ── 事件绑定 ── */
+  p._bindEvents = function() {
+    var self = this
     var ball = this.ballEl
     if (!ball) return
-    var self = this
     this._on(ball, 'pointerdown', function(e) { self._onDragStart.call(self, e) })
     this._on(document, 'pointermove', function(e) { self._onDragMove.call(self, e) })
     this._on(document, 'pointerup', function(e) { self._onDragEnd.call(self, e) })
     this._on(window, 'resize', function() { self._constrainBall.call(self) })
   }
 
-  _p._on = function(el, type, fn) {
+  p._on = function(el, type, fn) {
     el.addEventListener(type, fn)
     this._boundHandlers[type] = this._boundHandlers[type] || []
     this._boundHandlers[type].push({ el: el, fn: fn })
   }
 
-  _p._onDragStart = function(e) {
+  p._onDragStart = function(e) {
     if (e.pointerType === 'mouse' && e.button !== 0) return
     this.isDragging = false
     this.dragStartPos = { x: e.clientX, y: e.clientY }
@@ -161,7 +804,7 @@
     this._dragPointerId = e.pointerId
   }
 
-  _p._onDragMove = function(e) {
+  p._onDragMove = function(e) {
     if (this._dragPointerId == null) return
     var dx = e.clientX - this.dragStartPos.x
     var dy = e.clientY - this.dragStartPos.y
@@ -175,7 +818,7 @@
     }
   }
 
-  _p._onDragEnd = function(e) {
+  p._onDragEnd = function(e) {
     if (this._dragPointerId == null) return
     var ball = this.ballEl
     ball.releasePointerCapture(this._dragPointerId)
@@ -186,7 +829,7 @@
     ball.classList.add('idle-pulse')
   }
 
-  _p._snapToEdge = function() {
+  p._snapToEdge = function() {
     var ball = this.ballEl
     var size = this.config.ball.size
     var w = window.innerWidth
@@ -195,23 +838,24 @@
     var centerX = this.ballPos.x + size / 2
     if (centerX < w / 2) this.ballPos.x = edgeMargin
     else this.ballPos.x = w - size - edgeMargin
-    this.ballPos.y = Math.max(edgeMargin, Math.min(h - size - edgeMargin, this.ballPos.y))
+    this.ballPos.y = clamp(this.ballPos.y, edgeMargin, h - size - edgeMargin)
     ball.style.left = this.ballPos.x + 'px'
     ball.style.top = this.ballPos.y + 'px'
   }
 
-  _p._constrainBall = function() {
+  p._constrainBall = function() {
     var size = this.config.ball.size
-    var margin = 8
-    this.ballPos.x = Math.max(margin, Math.min(window.innerWidth - size - margin, this.ballPos.x))
-    this.ballPos.y = Math.max(margin, Math.min(window.innerHeight - size - margin, this.ballPos.y))
+    var m = 8
+    this.ballPos.x = clamp(this.ballPos.x, m, window.innerWidth - size - m)
+    this.ballPos.y = clamp(this.ballPos.y, m, window.innerHeight - size - m)
     if (this.ballEl) { this.ballEl.style.left = this.ballPos.x + 'px'; this.ballEl.style.top = this.ballPos.y + 'px' }
     if (this.isOpen) this._positionMenu()
   }
 
-  _p.toggleMenu = function() { this.isOpen ? this.closeMenu() : this.openMenu() }
+  /* ── 放射菜单 ── */
+  p.toggleMenu = function() { this.isOpen ? this.closeMenu() : this.openMenu() }
 
-  _p.openMenu = function() {
+  p.openMenu = function() {
     if (this.isOpen) return
     this.isOpen = true
     var self = this
@@ -220,6 +864,7 @@
     document.body.appendChild(this.overlayEl)
     requestAnimationFrame(function() { self.overlayEl.classList.add('visible') })
     this._on(this.overlayEl, 'click', function() { self.closeMenu() })
+
     this.menuEl = document.createElement('div')
     this.menuEl.className = 'roche-hub-menu'
     document.body.appendChild(this.menuEl)
@@ -227,7 +872,7 @@
     this._buildMenuItems()
   }
 
-  _p.closeMenu = function() {
+  p.closeMenu = function() {
     if (!this.isOpen) return
     this.isOpen = false
     var self = this
@@ -236,11 +881,11 @@
       if (self.overlayEl) { self.overlayEl.remove(); self.overlayEl = null }
       if (self.menuEl) { self.menuEl.remove(); self.menuEl = null }
       self.menuItems = []
-    }, 300)
+    }, 350)
     if (this.overlayEl) this.overlayEl.classList.remove('visible')
   }
 
-  _p._positionMenu = function() {
+  p._positionMenu = function() {
     if (!this.menuEl || !this.ballEl) return
     var rect = this.ballEl.getBoundingClientRect()
     var size = this.config.ball.size
@@ -248,7 +893,7 @@
     this.menuEl.style.top = (rect.top + size / 2) + 'px'
   }
 
-  _p._buildMenuItems = function() {
+  p._buildMenuItems = function() {
     var items = this._getMenuItems()
     var total = items.length
     var radius = this.config.menu.radius
@@ -257,33 +902,36 @@
     items.forEach(function(item, i) {
       var pos = radialPosition(i, total, radius, ballSize)
       var el = self._createMenuItem(item)
-      el.style.transform = 'translate(' + pos.x + 'px, ' + pos.y + 'px) scale(0.3)'
+      el.style.transform = 'translate(' + pos.x + 'px, ' + pos.y + 'px) scale(0.25)'
       el.style.opacity = '0'
       self.menuEl.appendChild(el)
       self.menuItems.push({ el: el, item: item })
-      setTimeout(function() { el.classList.add('show') }, 50 + i * 45)
+      setTimeout(function() { el.classList.add('show') }, 60 + i * 55)
     })
   }
 
-  _p._getMenuItems = function() {
+  p._getMenuItems = function() {
     var items = []
     var self = this
     ;(this.config.subPlugins || []).forEach(function(sp) {
-      items.push({ id: sp.id, name: sp.name, icon: sp.icon || '\uD83D\uDE80', type: 'subplugin', action: function() { self.closeMenu(); if (typeof sp.action === 'function') sp.action(self.roche); else self.roche.ui.toast('\u6253\u5F00 ' + sp.name) } })
+      items.push({
+        id: sp.id, name: sp.name, icon: sp.icon || svgIcon('rocket'), type: 'subplugin',
+        action: function() { self.closeMenu(); if (typeof sp.action === 'function') sp.action(self.roche); else self.roche.ui.toast('\u6253\u5F00 ' + sp.name) }
+      })
     })
     ;(this.config.shortcuts || []).forEach(function(sc) {
-      items.push({ id: sc.id, name: sc.name, icon: sc.icon || '\uD83D\uDCCD', type: sc.type, action: function() { self.closeMenu(); self._executeShortcut(sc) } })
+      items.push({ id: sc.id, name: sc.name, icon: sc.icon || svgIcon('link'), type: sc.type, action: function() { self.closeMenu(); self._executeShortcut(sc) } })
     })
-    items.push({ id: '__settings__', name: '\u8BBE\u7F6E', icon: '\u2699', type: 'builtin', action: function() { self.closeMenu(); self.roche.ui.openApp('roche-hub-home') } })
+    items.push({ id: '__settings__', name: '\u8BBE\u7F6E', icon: svgIcon('settings'), type: 'builtin', action: function() { self.closeMenu(); self.roche.ui.openApp('roche-hub-home') } })
     return items
   }
 
-  _p._createMenuItem = function(item) {
+  p._createMenuItem = function(item) {
     var wrap = document.createElement('div')
     wrap.className = 'roche-hub-menu-item'
     var btn = document.createElement('div')
     btn.className = 'roche-hub-menu-btn'
-    btn.textContent = item.icon
+    btn.innerHTML = typeof item.icon === 'string' && item.icon.indexOf('<svg') >= 0 ? item.icon : item.icon
     var label = document.createElement('span')
     label.className = 'roche-hub-menu-label'
     label.textContent = item.name
@@ -294,16 +942,18 @@
     return wrap
   }
 
-  _p._executeShortcut = async function(sc) {
+  p._executeShortcut = async function(sc) {
     try {
       switch (sc.type) {
         case 'character':
-          if (sc.targetId) { this.roche.ui.openApp('chat'); this.roche.ui.toast('\u6B63\u5728\u524D\u5F80 ' + sc.name + ' \u7684\u5BF9\u8BDD...') }
-          else this.roche.ui.toast('\u672A\u6307\u5B9A\u89D2\u8272')
+          if (sc.targetId) {
+            this.roche.ui.openApp('chat')
+            this.roche.ui.toast('\u6B63\u5728\u524D\u5F80 ' + sc.name + ' \u7684\u5BF9\u8BDD...')
+          } else { this.roche.ui.toast('\u672A\u9009\u62E9\u89D2\u8272') }
           break
         case 'app':
           if (sc.targetId) this.roche.ui.openApp(sc.targetId)
-          else this.roche.ui.toast('\u672A\u6307\u5B9A\u76EE\u6807 App')
+          else this.roche.ui.toast('\u672A\u9009\u62E9\u76EE\u6807 App')
           break
         case 'custom':
           if (sc.customAction) new Function('roche', 'hub', sc.customAction)(this.roche, this)
@@ -315,54 +965,139 @@
     } catch (err) { console.error('[RocheHub] shortcut error:', err); this.roche.ui.toast('\u6267\u884C\u5931\u8D25: ' + err.message) }
   }
 
-  _p._renderAppView = function() {
+  /* ════════════════════════════════════════════════════════════
+     App 视图 — 白金极光面板
+     ════════════════════════════════════════════════════════════ */
+
+  p._renderAppView = function() {
     var c = this._container
     c.innerHTML = ''
+
     var app = document.createElement('div')
-    app.className = 'roche-hub-app'
+    app.className = 'rh-app'
     var cfg = this.config
-    app.innerHTML = '<div class="roche-hub-header"><div class="roche-hub-logo">\u2606</div><h1 class="roche-hub-title">Hub \u60AC\u6D6E\u7403</h1><p class="roche-hub-subtitle">\u5168\u5C40\u63A7\u5236\u4E2D\u5FC3 \u00B7 \u7CBE\u81F4\u4F18\u96C5</p></div>'
-      + '<div class="roche-hub-section"><div class="roche-hub-section-title"><span class="icon">\uD83C\uDFA8</span> \u5916\u89C2</div>'
-      + '<div class="roche-hub-row"><div><div class="roche-hub-row-label">\u60AC\u6D6E\u7403\u5927\u5C0F</div><div class="roche-hub-row-desc" id="hub-size-val">' + cfg.ball.size + 'px</div></div><div class="roche-hub-slider-wrap"><input type="range" class="roche-hub-slider" id="hub-size" min="36" max="80" value="' + cfg.ball.size + '"></div></div>'
-      + '<div class="roche-hub-row"><div><div class="roche-hub-row-label">\u900F\u660E\u5EA6</div><div class="roche-hub-row-desc" id="hub-opacity-val">' + Math.round(cfg.ball.opacity * 100) + '%</div></div><div class="roche-hub-slider-wrap"><input type="range" class="roche-hub-slider" id="hub-opacity" min="30" max="100" value="' + Math.round(cfg.ball.opacity * 100) + '"></div></div>'
-      + '<div class="roche-hub-row"><div><div class="roche-hub-row-label">\u5F62\u72B6</div></div><select class="roche-hub-select" id="hub-shape" style="width:auto;min-width:90px;"><option value="circle"' + (cfg.ball.shape === 'circle' ? ' selected' : '') + '>\u5706\u5F62</option><option value="rounded"' + (cfg.ball.shape === 'rounded' ? ' selected' : '') + '>\u5706\u89D2</option><option value="square"' + (cfg.ball.shape === 'square' ? ' selected' : '') + '>\u65B9\u5F62</option></select></div>'
-      + '<div class="roche-hub-row"><div><div class="roche-hub-row-label">\u6E10\u53D8\u8D77\u59CB\u8272</div></div><input type="color" class="roche-hub-color-picker" id="hub-c1" value="' + cfg.ball.colorStart + '"></div>'
-      + '<div class="roche-hub-row"><div><div class="roche-hub-row-label">\u6E10\u53D8\u4E2D\u95F4\u8272</div></div><input type="color" class="roche-hub-color-picker" id="hub-c2" value="' + cfg.ball.colorMid + '"></div>'
-      + '<div class="roche-hub-row"><div><div class="roche-hub-row-label">\u6E10\u53D8\u7ED3\u675F\u8272</div></div><input type="color" class="roche-hub-color-picker" id="hub-c3" value="' + cfg.ball.colorEnd + '"></div>'
-      + '<div class="roche-hub-row"><div><div class="roche-hub-row-label">\u81EA\u5B9A\u4E49\u56FE\u7247</div><div class="roche-hub-row-desc" id="hub-img-status">' + (cfg.ball.customImage ? '\u5DF2\u8BBE\u7F6E' : '\u672A\u8BBE\u7F6E') + '</div></div><label class="roche-hub-btn roche-hub-btn-sm">' + (cfg.ball.customImage ? '\u66F4\u6362' : '\u4E0A\u4F20') + '<input type="file" accept="image/png,image/jpeg,image/webp" id="hub-img-upload" style="display:none"></label></div>'
-      + (cfg.ball.customImage ? '<div class="roche-hub-row" style="justify-content:center;padding:12px;"><img class="roche-hub-preview-img" id="hub-img-preview" src="' + cfg.ball.customImage + '" alt="\u9884\u89C8"><button class="roche-hub-btn roche-hub-btn-sm roche-hub-btn-danger" id="hub-img-clear" style="margin-left:10px;">\u6E05\u9664</button></div>' : '')
+
+    app.innerHTML = ''
+      + '<div class="rh-header">'
+      + '  <div class="rh-header-inner">'
+      + '    <div class="rh-logo">' + svgIcon('star') + '</div>'
+      + '    <h1 class="rh-title">Hub \u60AC\u6D6E\u7403</h1>'
+      + '    <p class="rh-subtitle">\u5168\u5C40\u63A7\u5236\u4E2D\u5FC3 \u00B7 \u767D\u91D1\u6781\u5149</p>'
+      + '    <button class="rh-back-btn" id="rh-back-btn">' + svgIcon('back') + ' \u8FD4\u56DE\u4E3B\u754C</button>'
+      + '  </div>'
       + '</div>'
-      + '<div class="roche-hub-section"><div class="roche-hub-section-title"><span class="icon">\uD83D\uDD17</span> \u5FEB\u6377\u65B9\u5F0F<button class="roche-hub-btn roche-hub-btn-sm" id="hub-add-sc" style="margin:left:auto;">+ \u6DFB\u52A0</button></div><div id="hub-sc-list"></div></div>'
-      + '<div class="roche-hub-section"><div class="roche-hub-section-title"><span class="icon">\u2764\uFE0F</span> \u540E\u53F0\u5F15\u64CE</div>'
-      + '<div class="roche-hub-row"><div><div class="roche-hub-row-label">\u542F\u7528\u5168\u5C40\u5FC3\u8DF3</div><div class="roche-hub-row-desc">\u9ED8\u8BA4\u5173\u95ED\uFF0C\u624B\u52A8\u5F00\u542F\u540E\u5B50\u63D2\u4EF6\u53EF\u6CE8\u518C\u540E\u53F0\u4EFB\u52A1</div></div><label class="roche-hub-switch"><input type="checkbox" id="hub-heartbeat-toggle"' + (cfg.heartbeat.enabled ? ' checked' : '') + '><div class="roche-hub-switch track"><div class="roche-hub-switch knob"></div></div></label></div>'
-      + '<div class="roche-hub-row" id="hb-interval-row" style="' + (cfg.heartbeat.enabled ? '' : 'opacity:.4;pointer-events:none') + '"><div><div class="roche-hub-row-label">\u5FC3\u8DF3\u95F4\u9694</div><div class="roche-hub-row-desc" id="hub-hb-val">' + (cfg.heartbeat.intervalMs / 1000).toFixed(0) + '\u79D2</div></div><div class="roche-hub-slider-wrap"><input type="range" class="roche-hub-slider" id="hub-hb-interval" min="10" max="3600" value="' + (cfg.heartbeat.intervalMs / 1000) + '" step="10"></div></div></div></div>'
-      + '<div class="roche-hub-section"><div class="roche-hub-section-title"><span class="icon">\uD83D\uDE80</span> \u5DF2\u6CE8\u518C\u5B50\u63D2\u4EF6</div><div id="hub-sp-list"></div></div>'
-      + '<div class="roche-hub-safe-bottom"></div>'
+
+      /* 外观设置 */
+      + '<div class="rh-section">'
+      + '  <div class="rh-section-title"><span class="rh-icon">\uD83C\uDFA8</span> \u5916\u89C2</div>'
+
+      + '  <div class="rh-row">'
+      + '    <div><div class="rh-row-label">\u60AC\u6D6E\u7403\u5927\u5C0F</div><div class="rh-row-desc" id="rh-size-val">' + cfg.ball.size + 'px</div></div>'
+      + '    <div class="rh-slider-wrap"><input type="range" class="rh-slider" id="rh-size" min="36" max="80" value="' + cfg.ball.size + '"></div>'
+      + '  </div>'
+
+      + '  <div class="rh-row">'
+      + '    <div><div class="rh-row-label">\u900F\u660E\u5EA6</div><div class="rh-row-desc" id="rh-opacity-val">' + Math.round(cfg.ball.opacity * 100) + '%</div></div>'
+      + '    <div class="rh-slider-wrap"><input type="range" class="rh-slider" id="rh-opacity" min="30" max="100" value="' + Math.round(cfg.ball.opacity * 100) + '"></div>'
+      + '  </div>'
+
+      + '  <div class="rh-row">'
+      + '    <div><div class="rh-row-label">\u5F62\u72B6</div></div>'
+      + '    <select class="rh-select" id="rh-shape" style="width:auto;min-width:90px;">'
+      + '      <option value="circle"' + (cfg.ball.shape === 'circle' ? ' selected' : '') + '>\u5706\u5F62</option>'
+      + '      <option value="rounded"' + (cfg.ball.shape === 'rounded' ? ' selected' : '') + '>\u5706\u89D2</option>'
+      + '      <option value="square"' + (cfg.ball.shape === 'square' ? ' selected' : '') + '>\u65B9\u5F62</option>'
+      + '    </select>'
+      + '  </div>'
+
+      + '  <div class="rh-row">'
+      + '    <div><div class="rh-row-label">\u81EA\u5B9A\u4E49\u56FE\u7247</div><div class="rh-row-desc" id="rh-img-status">' + (cfg.ball.customImage ? '\u5DF2\u8BBE\u7F6E' : '\u672A\u8BBE\u7F6E') + '</div></div>'
+      + '    <label class="rh-btn rh-btn-sm">' + (cfg.ball.customImage ? '\u66F4\u6362' : '\u4E0A\u4F20') + '<input type="file" accept="image/png,image/jpeg,image/webp" id="rh-img-upload" style="display:none"></label>'
+      + '  </div>'
+      + (cfg.ball.customImage
+        ? '<div class="rh-row" style="justify-content:center;padding:14px;"><img class="rh-preview-img" id="rh-img-preview" src="' + cfg.ball.customImage + '" alt="\u9884\u89C8"><button class="rh-btn rh-btn-sm rh-btn-danger" id="rh-img-clear" style="margin-left:10px;">\u6E05\u9664</button></div>'
+        : '')
+      + '</div>'
+
+      /* 快捷方式 */
+      + '<div class="rh-section">'
+      + '  <div class="rh-section-title"><span class="rh-icon">' + svgIcon('link') + '</span> \u5FEB\u6377\u65B9\u5F0F<button class="rh-btn rh-btn-sm" id="rh-add-sc" style="margin:left:auto;">' + svgIcon('plus') + ' \u6DFB\u52A0</button></div>'
+      + '  <div id="rh-sc-list"></div>'
+      + '</div>'
+
+      /* 后台引擎 */
+      + '<div class="rh-section">'
+      + '  <div class="rh-section-title"><span class="rh-icon">' + svgIcon('heart') + '</span> \u540E\u53F0\u5F15\u64CE</div>'
+
+      + '  <div class="rh-row">'
+      + '    <div><div class="rh-row-label">\u542F\u7528\u5168\u5C40\u5FC3\u8DF3</div><div class="rh-row-desc">\u9ED8\u8BA4\u5173\u95ED\uFF0C\u5B50\u63D2\u4EF6\u53EF\u6CE8\u518C\u540E\u53F0\u4EFB\u52A1</div></div>'
+      + '    <label class="rh-switch"><input type="checkbox" id="rh-hb-toggle"' + (cfg.heartbeat.enabled ? ' checked' : '') + '><div class="rh-sw-track' + (cfg.heartbeat.enabled ? ' on' : '') + '><div class="rh-sw-knob"></div></div></label>'
+      + '  </div>'
+
+      + '  <div class="rh-row" id="rh-hb-row" style="' + (cfg.heartbeat.enabled ? '' : 'opacity:.4;pointer-events:none') + '">'
+      + '    <div><div class="rh-row-label">\u5FC3\u8DF3\u95F4\u9694</div><div class="rh-row-desc" id="rh-hb-val">' + (cfg.heartbeat.intervalMs / 1000).toFixed(0) + '\u79D2</div></div>'
+      + '    <div class="rh-slider-wrap"><input type="range" class="rh-slider" id="rh-hb-interval" min="10" max="3600" value="' + (cfg.heartbeat.intervalMs / 1000) + '" step="10"></div>'
+      + '  </div>'
+      + '</div>'
+
+      /* 已注册子插件 */
+      + '<div class="rh-section">'
+      + '  <div class="rh-section-title"><span class="rh-icon">' + svgIcon('rocket') + '</span> \u5DF2\u6CE8\u518C\u5B50\u63D2\u4EF6</div>'
+      + '  <div id="rh-sp-list"></div>'
+      + '</div>'
+
+      + '<div class="rh-safe-bottom"></div>'
+
     c.appendChild(app)
     this._bindAppEvents(app)
     this._renderShortcutList()
     this._renderSubPluginList()
   }
 
-  _p._bindAppEvents = function(app) {
+  /* ── App 内事件绑定 ── */
+  p._bindAppEvents = function(app) {
     var self = this
-    var sizeSlider = app.querySelector('#hub-size')
-    var sizeVal = app.querySelector('#hub-size-val')
-    sizeSlider.addEventListener('input', async function() { var v = parseInt(sizeSlider.value); self.config.ball.size = v; sizeVal.textContent = v + 'px'; self._applyBallStyle(self.ballEl); await self._saveConfig() })
-    var opSlider = app.querySelector('#hub-opacity')
-    var opVal = app.querySelector('#hub-opacity-val')
-    opSlider.addEventListener('input', async function() { var v = parseInt(opSlider.value) / 100; self.config.ball.opacity = v; opVal.textContent = Math.round(v * 100) + '%'; self._applyBallStyle(self.ballEl); await self._saveConfig() })
-    var shapeSel = app.querySelector('#hub-shape')
-    shapeSel.addEventListener('change', async function() { self.config.ball.shape = shapeSel.value; self._applyBallStyle(self.ballEl); await self._saveConfig() })
-    var colors = ['c1','c2','c3']
-    var fields = ['colorStart','colorMid','colorEnd']
-    colors.forEach(function(key, i) {
-      var picker = app.querySelector('#hub-' + key)
-      picker.addEventListener('input', async function() { self.config.ball[fields[i]] = picker.value; self._applyBallStyle(self.ballEl); await self._saveConfig() })
+
+    /* 返回按钮 */
+    app.querySelector('#rh-back-btn').addEventListener('click', function() {
+      self.roche.ui.openApp('')
     })
-    var imgUpload = app.querySelector('#hub-img-upload')
+
+    /* 大小滑块 */
+    var szSlider = app.querySelector('#rh-size')
+    var szVal = app.querySelector('#rh-size-val')
+    szSlider.addEventListener('input', async function() {
+      var v = parseInt(szSlider.value)
+      self.config.ball.size = v
+      szVal.textContent = v + 'px'
+      self._applyBallStyle(self.ballEl)
+      await self._saveConfig()
+    })
+
+    /* 透明度滑块 */
+    var opSlider = app.querySelector('#rh-opacity')
+    var opVal = app.querySelector('#rh-opacity-val')
+    opSlider.addEventListener('input', async function() {
+      var v = parseInt(opSlider.value) / 100
+      self.config.ball.opacity = v
+      opVal.textContent = Math.round(v * 100) + '%'
+      self._applyBallStyle(self.ballEl)
+      await self._saveConfig()
+    })
+
+    /* 形状选择 */
+    var shapeSel = app.querySelector('#rh-shape')
+    shapeSel.addEventListener('change', async function() {
+      self.config.ball.shape = shapeSel.value
+      self._applyBallStyle(self.ballEl)
+      await self._saveConfig()
+    })
+
+    /* 图片上传 */
+    var imgUpload = app.querySelector('#rh-img-upload')
     imgUpload.addEventListener('change', async function(e) {
-      var file = e.target.files[0]; if (!file) return
+      var file = e.target.files[0]
+      if (!file) return
       var reader = new FileReader()
       reader.onload = async function(ev) {
         self.config.ball.customImage = ev.target.result
@@ -374,27 +1109,38 @@
       }
       reader.readAsDataURL(file)
     })
-    var clearBtn = app.querySelector('#hub-img-clear')
+
+    var clearBtn = app.querySelector('#rh-img-clear')
     if (clearBtn) clearBtn.addEventListener('click', async function() {
       self.config.ball.customImage = ''
       await self._saveConfig()
       self._applyBallStyle(self.ballEl)
       var inner = self.ballEl.querySelector('.roche-hub-ball-inner')
-      if (inner) { inner.style.backgroundImage = ''; inner.innerHTML = '<span class="roche-hub-ball-icon">\u2606</span>' }
+      if (inner) { inner.style.backgroundImage = ''; inner.innerHTML = '<span class="roche-hub-ball-icon">' + svgIcon('star') + '</span>' }
       self._renderAppView()
     })
-    app.querySelector('#hub-add-sc').addEventListener('click', function() { self._showShortcutModal() })
-    var hbToggle = app.querySelector('#hub-heartbeat-toggle')
-    var hbRow = app.querySelector('#hb-interval-row')
+
+    /* 添加快捷方式 */
+    app.querySelector('#rh-add-sc').addEventListener('click', function() { self._showShortcutModal() })
+
+    /* 心跳开关 */
+    var hbToggle = app.querySelector('#rh-hb-toggle')
+    var hbRow = app.querySelector('#rh-hb-row')
     hbToggle.addEventListener('change', async function() {
       self.config.heartbeat.enabled = hbToggle.checked
       hbRow.style.opacity = hbToggle.checked ? '' : '.4'
       hbRow.style.pointerEvents = hbToggle.checked ? '' : 'none'
+      var track = hbToggle.nextElementSibling
+      if (hbToggle.checked) track.classList.add('on')
+      else track.classList.remove('on')
       await self._saveConfig()
-      if (hbToggle.checked) self._startHeartbeat(); else self._stopHeartbeat()
+      if (hbToggle.checked) self._startHeartbeat()
+      else self._stopHeartbeat()
     })
-    var hbInterval = app.querySelector('#hub-hb-interval')
-    var hbVal = app.querySelector('#hub-hb-val')
+
+    /* 心跳间隔 */
+    var hbInterval = app.querySelector('#rh-hb-interval')
+    var hbVal = app.querySelector('#rh-hb-val')
     hbInterval.addEventListener('input', async function() {
       var sec = parseInt(hbInterval.value)
       self.config.heartbeat.intervalMs = sec * 1000
@@ -404,55 +1150,153 @@
     })
   }
 
-  _p._renderShortcutList = function() {
-    var listEl = document.querySelector('#hub-sc-list')
+  /* ── 快捷方式列表（带智能选择器） ── */
+  p._renderShortcutList = function() {
+    var listEl = document.querySelector('#rh-sc-list')
     if (!listEl) return
     var shorts = this.config.shortcuts || []
     var self = this
-    if (shorts.length === 0) { listEl.innerHTML = '<div class="roche-hub-empty"><div class="roche-hub-empty-icon">\uD83D\uDCDD</div>\u8FD8\u6CA1\u6709\u5FEB\u6377\u65B9\u5F0F<br>\u70B9\u51FB\u4E0A\u65B9\u6309\u94AE\u6DFB\u52A0</div>'; return }
-    var labels = { character: '\uD83D\uDC64 \u89D2\u8272\u804A\u5929', app: '\uD83D\uDCBB App \u8DF3\u8F6C', custom: '\u2728 \u81EA\u5B9A\u4E49\u52A8\u4F5C' }
-    var icons = { character: '\uD83D\uDC64', app: '\uD83D\uDCBB', custom: '\u2728' }
+    if (shorts.length === 0) {
+      listEl.innerHTML = '<div class="rh-empty"><div class="rh-empty-icon">' + svgIcon('link') + '</div>\u8FD8\u6CA1\u6709\u5FEB\u6377\u65B9\u5F0F<br>\u70B9\u51FB\u201C+\u6DFB\u52A0\u201D\u521B\u5EFA</div>'
+      return
+    }
+    var labels = { character: '\u89D2\u8272\u804A\u5929', app: 'App \u8DF3\u8F6C', custom: '\u81EA\u5B9A\u4E49\u52A8\u4F5C' }
+    var icMap = { character: svgIcon('user'), app: svgIcon('app'), custom: svgIcon('code') }
     listEl.innerHTML = shorts.map(function(sc, idx) {
+      var ic = icMap[sc.type] || svgIcon('link')
       var tl = labels[sc.type] || sc.type
-      var ic = icons[sc.type] || '\uD83D\uDD17'
-      return '<div class="roche-hub-shortcut-item" data-idx="' + idx + '"><div class="roche-hub-sc-icon">' + ic + '</div><div class="roche-hub-sc-info"><div class="roche-hub-sc-name">' + self._escHtml(sc.name) + '</div><div class="roche-hub-sc-type">' + tl + (sc.targetId ? ' \u00B7 ' + sc.targetId : '') + '</div></div><div class="roche-hub-sc-actions"><button class="roche-hub-sc-action-btn edit-btn" title="\u7F16\u8F91">&#9998;</button><button class="roche-hub-sc-action-btn danger del-btn" title="\u5220\u9664">&times;</button></div></div>'
+      var targetName = sc.targetName || sc.targetId || ''
+      return '<div class="rh-sc-item" data-idx="' + idx + '">'
+        + '<div class="rh-sc-icon-wrap">' + ic + '</div>'
+        + '<div class="rh-sc-info"><div class="rh-sc-name">' + escHtml(sc.name) + '</div><div class="rh-sc-type">' + tl + (targetName ? ' \u00B7 ' + escHtml(targetName) : '') + '</div></div>'
+        + '<div class="rh-sc-actions"><button class="rh-sc-act-btn edit-btn" title="\u7F16\u8F91">' + svgIcon('edit') + '</button><button class="rh-sc-act-btn danger del-btn" title="\u5220\u9664">' + svgIcon('close') + '</button></div>'
+        + '</div>'
     }).join('')
     listEl.querySelectorAll('.edit-btn').forEach(function(btn, i) { btn.addEventListener('click', function() { self._showShortcutModal(i) }) })
     listEl.querySelectorAll('.del-btn').forEach(function(btn, i) { btn.addEventListener('click', function() { self._deleteShortcut(i) }) })
   }
 
-  _p._escHtml = function(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML }
-
-  _p._showShortcutModal = function(editIdx) {
+  /* ── 快捷方式模态框（带下拉选择器） ── */
+  p._showShortcutModal = function(editIdx) {
     var isEdit = typeof editIdx === 'number'
-    var sc = isEdit ? this.config.shortcuts[editIdx] : { id: uid(), name: '', type: 'character', targetId: '', icon: '', customAction: '' }
+    var sc = isEdit ? this.config.shortcuts[editIdx] : { id: uid(), name: '', type: 'character', targetId: '', targetName: '', icon: '', customAction: '' }
     var self = this
+
     var mask = document.createElement('div')
-    mask.className = 'roche-hub-modal-mask'
-    mask.innerHTML = '<div class="roche-hub-modal"><div class="roche-hub-modal-header"><h3 class="roche-hub-modal-title">' + (isEdit ? '\u7F16\u8F91\u5FEB\u6377\u65B9\u5F0F' : '\u6DFB\u52A0\u5FEB\u6377\u65B9\u5F0F') + '</h3><button class="roche-hub-modal-close hub-modal-close">&times;</button></div><div class="roche-hub-modal-body">'
-      + '<div class="roche-hub-form-group"><label class="roche-hub-form-label">\u540D\u79F0 *</label><input class="roche-hub-input" id="modal-sc-name" value="' + self._escHtml(sc.name) + '" placeholder="\u4F8B\u5982\uFF1A\u548C\u6C88\u785A\u804A\u5929"></div>'
-      + '<div class="roche-hub-form-group"><label class="roche-hub-form-label">\u7C7B\u578B</label><select class="roche-hub-select" id="modal-sc-type"><option value="character"' + (sc.type === 'character' ? ' selected' : '') + '>\u89D2\u8272\u804A\u5929</option><option value="app"' + (sc.type === 'app' ? ' selected' : '') + '>App \u8DF3\u8F6C</option><option value="custom"' + (sc.type === 'custom' ? ' selected' : '') + '>\u81EA\u5B9A\u4E49\u52A8\u4F5C</option></select></div>'
-      + '<div class="roche-hub-form-group" id="modal-target-group"><label class="roche-hub-form-label" id="modal-target-label">\u76EE\u6807 ID</label><input class="roche-hub-input" id="modal-sc-target" value="' + self._escHtml(sc.targetId || '') + '" placeholder="' + (sc.type === 'character' ? '\u89D2\u8272 ID' : sc.type === 'app' ? 'App ID' : '') + '"></div>'
-      + '<div class="roche-hub-form-group" id="modal-custom-group" style="' + (sc.type === 'custom' ? '' : 'display:none') + '"><label class="roche-hub-form-label">\u81EA\u5B9A\u4E49\u811A\u672C</label><textarea class="roche-hub-textarea" id="modal-sc-custom" placeholder="function(roche, hub) { ... }">' + self._escHtml(sc.customAction || '') + '</textarea><div class="roche-hub-hint">\u53EF\u7528\u53C2\u6570\uFF1Aroche\uFF08API\uFF09\u3001hub\uFF08Hub\u5B9E\u4F8B\uFF09\u3002\u8BF7\u52FF\u5305\u542B\u6027\u610F\u4EE3\u7801\u3002</div></div>'
-      + '<div class="roche-hub-form-group"><label class="roche-hub-form-label">\u56FE\u6807\uFF08\u53EF\u9009\uFF09</label><input class="roche-hub-input" id="modal-sc-icon" value="' + self._escHtml(sc.icon || '') + '" placeholder="emoji \u6216\u5B57\u7B26\uFF0C\u5982 \u2764\uFE0F"></div>'
-      + '</div><div class="roche-hub-modal-footer"><button class="roche-hub-btn hub-modal-cancel">\u53D6\u6D88</button><button class="roche-hub-btn roche-hub-btn-primary hub-modal-save">' + (isEdit ? '\u4FDD\u5B58' : '\u6DFB\u52A0') + '</button></div></div>'
+    mask.className = 'rh-modal-mask'
+
+    /* 构建角色选项 */
+    var charOptions = '<option value="">-- \u8BF7\u9009\u62E9\u89D2\u8272 --</option>'
+    ;(this._charList || []).forEach(function(ch) {
+      var cid = ch.id || ch.uuid || ch.name || ''
+      var cname = ch.name || ch.displayName || cid
+      var sel = (sc.targetId === cid) ? ' selected' : ''
+      charOptions += '<option value="' + escHtml(cid) + '"' + sel + '>' + escHtml(cname) + '</option>'
+    })
+    if (this._charList.length === 0) charOptions = '<option value="" disabled>\u672A\u83B7\u53D6\u5230\u89D2\u8272\u5217\u8868</option>'
+
+    /* 构建App选项 */
+    var appOptions = '<option value="">-- \u8BF7\u9009\u62E9 App --</option>'
+    ;(this._appList || []).forEach(function(ap) {
+      var aid = ap.id || ap.appId || ap.name || ''
+      var aname = ap.name || ap.title || aid
+      var sel = (sc.targetId === aid) ? ' selected' : ''
+      appOptions += '<option value="' + escHtml(aid) + '"' + sel + '>' + escHtml(aname) + '</option>'
+    })
+    if (this._appList.length === 0) appOptions = '<option value="" disabled>\u672A\u83B7\u53D6\u5230 App \u5217\u8868</option>'
+
+    mask.innerHTML = '<div class="rh-modal">'
+      + '<div class="rh-modal-head">'
+      + '  <h3 class="rh-modal-title">' + (isEdit ? '\u7F16\u8F91\u5FEB\u6377\u65B9\u5F0F' : '\u6DFB\u52A0\u5FEB\u6377\u65B9\u5F0F') + '</h3>'
+      + '  <button class="rh-modal-close rh-mclose">&times;</button>'
+      + '</div>'
+      + '<div class="rh-modal-body">'
+
+      + '  <div class="rh-fg"><label class="rh-fg-label">\u540D\u79F0 *</label>'
+      + '    <input class="rh-input" id="ms-name" value="' + escHtml(sc.name) + '" placeholder="\u4F8B\u5982\uFF1A\u548C\u6C88\u785A\u804A\u5929"></div>'
+
+      + '  <div class="rh-fg"><label class="rh-fg-label">\u7C7B\u578B</label>'
+      + '    <select class="rh-select" id="ms-type">'
+      + '      <option value="character"' + (sc.type === 'character' ? ' selected' : '') + '>\uD83D\uDC64 \u89D2\u8272\u804A\u5929</option>'
+      + '      <option value="app"' + (sc.type === 'app' ? ' selected' : ')'>\uD83D\uDCBB App \u8DF3\u8F6C</option>'
+      + '      <option value="custom"' + (sc.type === 'custom' ? ' selected' : ')'>\u2728 \u81EA\u5B9A\u4E49\u52A8\u4F5C</option>'
+      + '    </select></div>'
+
+      + '  <div class="rh-fg" id="ms-char-group">'
+      + '    <label class="rh-fg-label">\u9009\u62E9\u89D2\u8272</label>'
+      + '    <select class="rh-select" id="ms-target">' + charOptions + '</select>'
+      + '    <div class="rh-hint">\u4ECE\u5DF2\u5B89\u88C5\u7684\u89D2\u8272\u5217\u8868\u4E2D\u9009\u62E9\u3002\u5982\u679C\u5217\u8868\u4E3A\u7A7A\uFF0C\u8BF7\u786E\u4FDD\u5DF2\u5B89\u88C5\u81F3\u5C11\u4E00\u4E2A\u89D2\u8272\u3002</div>'
+      + '  </div>'
+
+      + '  <div class="rh-fg" id="ms-app-group" style="display:none">'
+      + '    <label class="rh-fg-label">\u9009\u62E9 App</label>'
+      + '    <select class="rh-select" id="ms-target-app">' + appOptions + '</select>'
+      + '    <div class="rh-hint">\u4ECE\u5DF2\u5B89\u88C5\u7684 App \u5217\u8868\u4E2D\u9009\u62E9\u3002</div>'
+      + '  </div>'
+
+      + '  <div class="rh-fg" id="ms-custom-group" style="' + (sc.type === 'custom' ? '' : 'display:none') + '">'
+      + '    <label class="rh-fg-label">\u81EA\u5B9A\u4E49\u811A\u672C</label>'
+      + '    <textarea class="rh-textarea" id="ms-custom" placeholder="function(roche, hub) { ... }">' + escHtml(sc.customAction || '') + '</textarea>'
+      + '    <div class="rh-hint">\u53EF\u7528\u53C2\u6570\uFF1Aroche\uFF08API\uFF09\u3001hub\uFF08Hub\u5B9E\u4F8B\uFF09</div>'
+      + '  </div>'
+
+      + '  <div class="rh-fg"><label class="rh-fg-label">\u56FE\u6807\uFF08\u53EF\u9009\uFF09</label>'
+      + '    <input class="rh-input" id="ms-icon" value="' + escHtml(sc.icon || '') + '" placeholder="emoji \u6216\u5B57\u7B26"></div>'
+
+      + '</div>'
+      + '<div class="rh-modal-foot">'
+      + '  <button class="rh-btn ms-cancel">\u53D6\u6D88</button>'
+      + '  <button class="rh-btn rh-btn-primary ms-save">' + (isEdit ? '\u4FDD\u5B58' : '\u6DFB\u52A0') + '</button>'
+      + '</div></div>'
+
     document.body.appendChild(mask)
     requestAnimationFrame(function() { mask.classList.add('show') })
-    var typeSel = mask.querySelector('#modal-sc-type')
-    var targetGroup = mask.querySelector('#modal-target-group')
-    var customGroup = mask.querySelector('#modal-custom-group')
+
+    var typeSel = mask.querySelector('#ms-type')
+    var charGroup = mask.querySelector('#ms-char-group')
+    var appGroup = mask.querySelector('#ms-app-group')
+    var custGroup = mask.querySelector('#ms-custom-group')
+
+    /* 类型切换联动 */
     typeSel.addEventListener('change', function() {
-      if (typeSel.value === 'custom') { targetGroup.style.display = 'none'; customGroup.style.display = '' }
-      else { targetGroup.style.display = ''; customGroup.style.display = 'none' }
+      charGroup.style.display = typeSel.value === 'character' ? '' : 'none'
+      appGroup.style.display = typeSel.value === 'app' ? '' : 'none'
+      custGroup.style.display = typeSel.value === 'custom' ? '' : 'none'
     })
-    mask.querySelector('.hub-modal-close').addEventListener('click', function() { self._closeModal(mask) })
-    mask.querySelector('.hub-modal-cancel').addEventListener('click', function() { self._closeModal(mask) })
-    mask.querySelector('.hub-modal-save').addEventListener('click', async function() {
-      var name = mask.querySelector('#modal-sc-name').value.trim()
+
+    mask.querySelector('.rh-mclose').addEventListener('click', function() { self._closeModal(mask) })
+    mask.querySelector('.ms-cancel').addEventListener('click', function() { self._closeModal(mask) })
+
+    mask.querySelector('.ms-save').addEventListener('click', async function() {
+      var name = mask.querySelector('#ms-name').value.trim()
       if (!name) { self.roche.ui.toast('\u8BF7\u8F93\u5165\u540D\u79F0'); return }
-      var data = { id: sc.id, name: name, type: typeSel.value, targetId: mask.querySelector('#modal-sc-target').value.trim(), icon: mask.querySelector('#modal-sc-icon').value.trim(), customAction: mask.querySelector('#modal-sc-custom').value.trim() }
+
+      var targetType = typeSel.value
+      var targetId = ''
+      var targetName = ''
+      if (targetType === 'character') {
+        targetId = mask.querySelector('#ms-target').value
+        var selOpt = mask.querySelector('#ms-target option:checked')
+        targetName = selOpt ? selOpt.text : targetId
+      } else if (targetType === 'app') {
+        targetId = mask.querySelector('#ms-target-app').value
+        var selAppOpt = mask.querySelector('#ms-target-app option:checked')
+        targetName = selAppOpt ? selAppOpt.text : targetId
+      }
+
+      var data = {
+        id: sc.id,
+        name: name,
+        type: targetType,
+        targetId: targetId,
+        targetName: targetName,
+        icon: mask.querySelector('#ms-icon').value.trim(),
+        customAction: mask.querySelector('#ms-custom').value.trim(),
+      }
+
       if (isEdit) self.config.shortcuts[editIdx] = data
       else self.config.shortcuts.push(data)
+
       await self._saveConfig()
       self._closeModal(mask)
       self._renderShortcutList()
@@ -460,36 +1304,51 @@
     })
   }
 
-  _p._deleteShortcut = function(idx) {
+  p._deleteShortcut = function(idx) {
     var self = this
     this.roche.ui.confirm({ title: '\u5220\u9664\u786E\u8BA4', message: '\u786E\u5B9A\u8981\u5220\u9664\u300C' + this.config.shortcuts[idx].name + '\u300D\u5417\uFF1F' }).then(function(ok) {
-      if (ok) { self.config.shortcuts.splice(idx, 1); self._saveConfig().then(function() { self._renderShortcutList(); self.roche.ui.toast('\u5DF2\u5220\u9664') }) }
+      if (ok) {
+        self.config.shortcuts.splice(idx, 1)
+        self._saveConfig().then(function() { self._renderShortcutList(); self.roche.ui.toast('\u5DF2\u5220\u9664') })
+      }
     }).catch(function() {})
   }
 
-  _p._closeModal = function(mask) { mask.classList.remove('show'); setTimeout(function() { mask.remove() }, 280) }
+  p._closeModal = function(mask) { mask.classList.remove('show'); setTimeout(function() { mask.remove() }, 380) }
 
-  _p._renderSubPluginList = function() {
-    var listEl = document.querySelector('#hub-sp-list')
+  /* ── 子插件列表 ── */
+  p._renderSubPluginList = function() {
+    var listEl = document.querySelector('#rh-sp-list')
     if (!listEl) return
     var plugins = this.config.subPlugins || []
     var self = this
-    if (plugins.length === 0) { listEl.innerHTML = '<div class="roche-hub-empty"><div class="roche-hub-empty-icon">\uD83D\uDE80</div>\u6682\u65E0\u5B50\u63D2\u4EF6\u6CE8\u518C<br>\u672A\u6765\u5B89\u88C5\u7684\u63D2\u4EF6\u4F1A\u5728\u6B64\u663E\u793A</div>'; return }
-    listEl.innerHTML = plugins.map(function(sp) { return '<div class="roche-hub-shortcut-item"><div class="roche-hub-sc-icon">' + (sp.icon || '\uD83D\uDE80') + '</div><div class="roche-hub-sc-info"><div class="roche-hub-sc-name">' + self._escHtml(sp.name) + '</div><div class="roche-hub-sc-type">ID: ' + sp.id + (sp.version ? ' \u00B7 v' + sp.version : '') + '</div></div></div>' }).join('')
+    if (plugins.length === 0) {
+      listEl.innerHTML = '<div class="rh-empty"><div class="rh-empty-icon">' + svgIcon('rocket') + '</div>\u6682\u65E0\u5B50\u63D2\u4EF6<br>\u672A\u6765\u5B89\u88C5\u7684\u63D2\u4EF6\u4F1A\u5728\u6B64\u663E\u793A</div>'
+      return
+    }
+    listEl.innerHTML = plugins.map(function(sp) {
+      return '<div class="rh-sc-item">'
+        + '<div class="rh-sc-icon-wrap">' + (sp.icon || svgIcon('rocket')) + '</div>'
+        + '<div class="rh-sc-info"><div class="rh-sc-name">' + escHtml(sp.name) + '</div><div class="rh-sc-type">ID: ' + sp.id + (sp.version ? ' \u00B7 v' + sp.version : '') + '</div></div>'
+        + '</div>'
+    }).join('')
   }
 
-  _p._startHeartbeat = function() {
+  /* ════════════════════════════════════════════════════════════
+     心跳引擎
+     ════════════════════════════════════════════════════════════ */
+
+  p._startHeartbeat = function() {
     this._stopHeartbeat()
     var interval = this.config.heartbeat.intervalMs || 60000
     var self = this
     this._heartbeatTimer = setInterval(async function() { await self._runHeartbeatTick() }, interval)
     console.log('[RocheHub] heartbeat started, interval=' + (interval / 1000) + 's')
   }
+  p._stopHeartbeat = function() { if (this._heartbeatTimer) { clearInterval(this._heartbeatTimer); this._heartbeatTimer = null } }
+  p._restartHeartbeat = function() { if (this.config.heartbeat.enabled) this._startHeartbeat() }
 
-  _p._stopHeartbeat = function() { if (this._heartbeatTimer) { clearInterval(this._heartbeatTimer); this._heartbeatTimer = null } }
-  _p._restartHeartbeat = function() { if (this.config.heartbeat.enabled) this._startHeartbeat() }
-
-  _p._runHeartbeatTick = async function() {
+  p._runHeartbeatTick = async function() {
     var tasks = this._heartbeatTasks.filter(function(t) { return t.enabled !== false })
     if (tasks.length === 0) return
     var now = Date.now()
@@ -504,10 +1363,14 @@
     }
   }
 
-  _p.registerSubPlugin = function(options) {
+  /* ════════════════════════════════════════════════════════════
+     子插件注册接口
+     ════════════════════════════════════════════════════════════ */
+
+  p.registerSubPlugin = function(options) {
     if (!options || !options.id) { console.error('[RocheHub] registerSubPlugin: missing id'); return false }
     var existing = this.config.subPlugins.findIndex(function(p) { return p.id === options.id })
-    var pluginData = { id: options.id, name: options.name || options.id, icon: options.icon || '\uD83D\uDE80', version: options.version || '', action: options.action || null, requireContext: options.requireContext || null }
+    var pluginData = { id: options.id, name: options.name || options.id, icon: options.icon || svgIcon('rocket'), version: options.version || '', action: options.action || null, requireContext: options.requireContext || null }
     if (existing >= 0) this.config.subPlugins[existing] = pluginData
     else this.config.subPlugins.push(pluginData)
     if (options.task) this._registerTask({ pluginId: options.id, ...options.task })
@@ -517,22 +1380,24 @@
     return true
   }
 
-  _p.unregisterSubPlugin = function(pluginId) {
+  p.unregisterSubPlugin = function(pluginId) {
     this.config.subPlugins = this.config.subPlugins.filter(function(p) { return p.id !== pluginId })
     this._heartbeatTasks = this._heartbeatTasks.filter(function(t) { return t.pluginId !== pluginId })
     this._saveConfig()
     this._renderSubPluginList()
-    console.log('[RocheHub] sub-plugin unregistered: ' + pluginId)
   }
 
-  _p._registerTask = function(task) {
+  p._registerTask = function(task) {
     if (!task.id || !task.pluginId) return
     this._heartbeatTasks = this._heartbeatTasks.filter(function(t) { return t.id !== task.id })
     this._heartbeatTasks.push({ id: task.id, pluginId: task.pluginId, type: task.type || 'timer', handler: task.handler, intervalMs: task.intervalMs || null, enabled: task.enabled !== false, config: task.config || {}, lastRun: 0 })
-    console.log('[RocheHub] heartbeat task registered: [' + task.pluginId + '] ' + task.id + ' (' + task.type + ')')
   }
 
-  _p.destroy = function() {
+  /* ════════════════════════════════════════════════════════════
+     销毁
+     ════════════════════════════════════════════════════════════ */
+
+  p.destroy = function() {
     this._stopHeartbeat()
     if (this.ballEl) { this.ballEl.remove(); this.ballEl = null }
     this.closeMenu()
@@ -542,15 +1407,18 @@
     this._boundHandlers = {}
     if (this._container) { this._container.replaceChildren(); this._container = null }
     this._heartbeatTasks = []
-    console.log('[RocheHub] destroyed')
   }
+
+  /* ════════════════════════════════════════════════════════════
+     注册入口
+     ════════════════════════════════════════════════════════════ */
 
   var _hubInstance = null
 
   window.RochePlugin.register({
     id: 'roche-hub',
     name: 'Hub \u60AC\u6D6E\u7403',
-    version: '1.0.1',
+    version: '1.0.2',
     icon: '\u2606',
     apps: [{
       id: 'roche-hub-home',
@@ -570,7 +1438,7 @@
 
   if (!window.RocheHubAPI) {
     window.RocheHubAPI = {
-      registerSubPlugin: function(options) { if (_hubInstance) return _hubInstance.registerSubPlugin(options); console.warn('[RocheHubAPI] Hub not ready'); return false },
+      registerSubPlugin: function(options) { if (_hubInstance) return _hubInstance.registerSubPlugin(options); console.warn('[RocheHubAPI] not ready'); return false },
       unregisterSubPlugin: function(pluginId) { if (_hubInstance) _hubInstance.unregisterSubPlugin(pluginId) },
       getInstance: function() { return _hubInstance },
     }
