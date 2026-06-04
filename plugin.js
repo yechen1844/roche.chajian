@@ -1,6 +1,10 @@
 /**
- * Roche Hub 悬浮球 v1.0.6 — 白金极光版
+ * Roche Hub 悬浮球 v1.0.7 — 白金极光版
  * 全局悬浮球中心 — 统一入口、快捷跳转、子插件托管、全局心跳引擎
+ *
+ * v1.0.7 更新：
+ *   - 修复角色聊天跳转：使用 conversationId 直接调用 openApp，多重 fallback 查找会话
+ *   - 修复环绕菜单不跟随悬浮球：改用 position: fixed + 视口绝对坐标定位
  *
  * v1.0.6 更新：
  *   - 分离悬浮球和App视图的生命周期：关闭App后球不再消失
@@ -720,7 +724,6 @@
       }
     } catch(e) { console.warn('[RocheHub] load char list failed', e) }
     try {
-      // 使用 conversation.list 获取会话列表（角色聊天/群聊）
       if (this.roche.conversation && typeof this.roche.conversation.list === 'function') {
         this._appList = await this.roche.conversation.list() || []
       }
@@ -834,7 +837,6 @@
     this._dragPointerId = null
     ball.style.transition = ''
     if (this.isDragging) {
-      // 自由拖拽：不做吸附，保留当前位置
       this.isDragging = false
     } else { this.toggleMenu() }
     ball.classList.add('idle-pulse')
@@ -889,6 +891,7 @@
     var self = this
     this.menuItems.forEach(function(item) { item.el.classList.remove('show') })
     setTimeout(function() {
+      self.menuItems.forEach(function(item) { if (item.el && item.el.parentNode) item.el.remove() })
       if (self.overlayEl) { self.overlayEl.remove(); self.overlayEl = null }
       if (self.menuEl) { self.menuEl.remove(); self.menuEl = null }
       self.menuItems = []
@@ -897,11 +900,7 @@
   }
 
   p._positionMenu = function() {
-    if (!this.menuEl || !this.ballEl) return
-    var rect = this.ballEl.getBoundingClientRect()
-    var size = this.config.ball.size
-    this.menuEl.style.left = (rect.left + size / 2) + 'px'
-    this.menuEl.style.top = (rect.top + size / 2) + 'px'
+    /* 菜单项现在使用 position: fixed，直接定位，不需要容器偏移 */
   }
 
   p._buildMenuItems = function() {
@@ -910,14 +909,18 @@
     var radius = this.config.menu.radius
     var ballSize = this.config.ball.size
     var self = this
+    var rect = this.ballEl.getBoundingClientRect()
+    var centerX = rect.left + ballSize / 2
+    var centerY = rect.top + ballSize / 2
     items.forEach(function(item, i) {
       var pos = radialPosition(i, total, radius, ballSize)
       var el = self._createMenuItem(item)
-      el.style.left = pos.x + 'px'
-      el.style.top = pos.y + 'px'
+      el.style.position = 'fixed'
+      el.style.left = (centerX + pos.x) + 'px'
+      el.style.top = (centerY + pos.y) + 'px'
       el.style.marginLeft = '-23px'
       el.style.marginTop = '-30px'
-      self.menuEl.appendChild(el)
+      document.body.appendChild(el)
       self.menuItems.push({ el: el, item: item })
       setTimeout(function() { el.classList.add('show') }, 60 + i * 55)
     })
@@ -961,19 +964,32 @@
       switch (sc.type) {
         case 'character':
           if (sc.targetId) {
-            // 尝试通过 conversationId 打开角色聊天
-            var charData = null
-            for (var ci = 0; ci < this._charList.length; ci++) {
-              if (this._charList[ci].id === sc.targetId || this._charList[ci].name === sc.targetId) {
-                charData = this._charList[ci]; break
+            var targetConvId = null
+            try {
+              var convList = await this.roche.conversation.list({ memberId: sc.targetId }) || []
+              if (convList.length > 0) {
+                targetConvId = convList[0].conversationId || convList[0].id
+              }
+            } catch(e) { console.warn('[RocheHub] conv list error', e) }
+            if (!targetConvId && this._charList.length > 0) {
+              for (var ci = 0; ci < this._charList.length; ci++) {
+                if (this._charList[ci].id === sc.targetId || this._charList[ci].name === sc.targetId) {
+                  targetConvId = this._charList[ci].conversationId; break
+                }
               }
             }
-            if (charData && charData.conversationId) {
-              this.roche.ui.openApp('chat-' + charData.conversationId)
-            } else {
-              this.roche.ui.openApp('chat')
+            if (!targetConvId) {
+              try {
+                var charDetail = await this.roche.character.get(sc.targetId)
+                if (charDetail) targetConvId = charDetail.conversationId || charDetail.id
+              } catch(e2) { console.warn('[RocheHub] character.get error', e2) }
             }
-            this.roche.ui.toast('\u6B63\u5728\u524D\u5F80 ' + sc.name + ' \u7684\u5BF9\u8BDD...')
+            if (targetConvId) {
+              this.roche.ui.openApp(targetConvId)
+              this.roche.ui.toast('\u6B63\u5728\u524D\u5F80 ' + sc.name + ' \u7684\u5BF9\u8BDD...')
+            } else {
+              this.roche.ui.toast('\u627E\u4E0D\u5230\u8BE5\u89D2\u8272\u7684\u5BF9\u8BFF')
+            }
           } else { this.roche.ui.toast('\u672A\u9009\u62E9\u89D2\u8272') }
           break
         case 'app':
@@ -1012,7 +1028,6 @@
       + '  </div>'
       + '</div>'
 
-      /* 外观设置 */
       + '<div class="rh-section">'
       + '  <div class="rh-section-title"><span class="rh-icon">\uD83C\uDFA8</span> \u5916\u89C2</div>'
 
@@ -1042,13 +1057,11 @@
 
       + '</div>'
 
-      /* 快捷方式 */
       + '<div class="rh-section">'
       + '  <div class="rh-section-title"><span class="rh-icon">' + svgIcon('link') + '</span> \u5FEB\u6377\u65B9\u5F0F<button class="rh-btn rh-btn-sm" id="rh-add-sc" style="margin:left:auto;">' + svgIcon('plus') + ' \u6DFB\u52A0</button></div>'
       + '  <div id="rh-sc-list"></div>'
       + '</div>'
 
-      /* 后台引擎 */
       + '<div class="rh-section">'
       + '  <div class="rh-section-title"><span class="rh-icon">' + svgIcon('heart') + '</span> \u540E\u53F0\u5F15\u64CE</div>'
 
@@ -1063,7 +1076,6 @@
       + '  </div>'
       + '</div>'
 
-      /* 已注册子插件 */
       + '<div class="rh-section">'
       + '  <div class="rh-section-title"><span class="rh-icon">' + svgIcon('rocket') + '</span> \u5DF2\u6CE8\u518C\u5B50\u63D2\u4EF6</div>'
       + '  <div id="rh-sp-list"></div>'
@@ -1081,12 +1093,10 @@
   p._bindAppEvents = function(app) {
     var self = this
 
-    /* 返回按钮 */
     app.querySelector('#rh-back-btn').addEventListener('click', function() {
       self.roche.ui.closeApp()
     })
 
-    /* 大小滑块 */
     var szSlider = app.querySelector('#rh-size')
     var szVal = app.querySelector('#rh-size-val')
     szSlider.addEventListener('input', async function() {
@@ -1097,7 +1107,6 @@
       await self._saveConfig()
     })
 
-    /* 透明度滑块 */
     var opSlider = app.querySelector('#rh-opacity')
     var opVal = app.querySelector('#rh-opacity-val')
     opSlider.addEventListener('input', async function() {
@@ -1108,7 +1117,6 @@
       await self._saveConfig()
     })
 
-    /* 形状选择 */
     var shapeSel = app.querySelector('#rh-shape')
     shapeSel.addEventListener('change', async function() {
       self.config.ball.shape = shapeSel.value
@@ -1116,7 +1124,6 @@
       await self._saveConfig()
     })
 
-    /* 图片URL输入 */
     var imgUrl = app.querySelector('#rh-img-url')
     imgUrl.addEventListener('change', async function() {
       var url = imgUrl.value.trim()
@@ -1130,10 +1137,8 @@
       }
     })
 
-    /* 添加快捷方式 */
     app.querySelector('#rh-add-sc').addEventListener('click', function() { self._showShortcutModal() })
 
-    /* 心跳开关 */
     var hbToggle = app.querySelector('#rh-hb-toggle')
     var hbRow = app.querySelector('#rh-hb-row')
     var hbTrack = app.querySelector('#rh-hb-toggle').parentElement.querySelector('.rh-sw-track')
@@ -1148,7 +1153,6 @@
       else self._stopHeartbeat()
     })
 
-    /* 心跳间隔 */
     var hbInterval = app.querySelector('#rh-hb-interval')
     var hbVal = app.querySelector('#rh-hb-val')
     hbInterval.addEventListener('input', async function() {
@@ -1195,7 +1199,6 @@
     var mask = document.createElement('div')
     mask.className = 'rh-modal-mask'
 
-    /* 构建角色选项 */
     var charOptions = '<option value="">-- \u8BF7\u9009\u62E9\u89D2\u8272 --</option>'
     ;(this._charList || []).forEach(function(ch) {
       var cid = ch.id || ch.uuid || ch.name || ''
@@ -1205,7 +1208,6 @@
     })
     if (this._charList.length === 0) charOptions = '<option value="" disabled>\u672A\u83B7\u53D6\u5230\u89D2\u8272\u5217\u8868</option>'
 
-    /* 构建会话选项 */
     var appOptions = '<option value="">-- \u8BF7\u9009\u62E9\u4F1A\u8BDD --</option>'
     ;(this._appList || []).forEach(function(ap) {
       var aid = ap.conversationId || ap.id || ''
@@ -1271,14 +1273,12 @@
     var appGroup = mask.querySelector('#ms-app-group')
     var custGroup = mask.querySelector('#ms-custom-group')
 
-    /* 类型切换联动 */
     typeSel.addEventListener('change', function() {
       charGroup.style.display = typeSel.value === 'character' ? '' : 'none'
       appGroup.style.display = typeSel.value === 'app' ? '' : 'none'
       custGroup.style.display = typeSel.value === 'custom' ? '' : 'none'
     })
 
-    /* 角色选择时自动填充头像 */
     var targetSel = mask.querySelector('#ms-target')
     targetSel.addEventListener('change', function() {
       var opt = targetSel.querySelector('option:checked')
@@ -1324,7 +1324,7 @@
       await self._saveConfig()
       self._closeModal(mask)
       self._renderShortcutList()
-      self.roche.ui.toast(isEdit ? '\u5DF2\u4FDD\u5B58' : '\u5DF2\u6DFB\u52A0')
+      self.roche.ui.toast(isEdit ? '\u5DF2\u4FDD\u5B58' : '\u5DFB\u6DFB\u52A0')
     })
   }
 
@@ -1428,12 +1428,10 @@
      生命周期：App视图卸载 / 完全销毁
      ════════════════════════════════════════════════════════════ */
 
-  /* 只清除 App 视图，保留悬浮球 */
   p.unmountAppView = function() {
     if (this._container) { this._container.innerHTML = ''; this._container = null }
   }
 
-  /* 完全销毁（插件卸载时调用） */
   p.destroyBall = function() {
     this._stopHeartbeat()
     if (this.ballEl) { this.ballEl.remove(); this.ballEl = null }
@@ -1446,7 +1444,6 @@
     this._heartbeatTasks = []
   }
 
-  /* 保留 destroy 作为完全销毁的别名 */
   p.destroy = function() {
     this.destroyBall()
   }
@@ -1460,7 +1457,7 @@
   window.RochePlugin.register({
     id: 'roche-hub',
     name: 'Hub \u60AC\u6D6E\u7403',
-    version: '1.0.6',
+    version: '1.0.7',
     icon: '\u2606',
     apps: [{
       id: 'roche-hub-home',
