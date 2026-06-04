@@ -1,7 +1,9 @@
 /**
- * Roche Hub 悬浮球 v1.0.2 — 白金极光版
+ * Roche Hub 悬浮球 v1.0.3 — 白金极光版
  * 全局悬浮球中心 — 统一入口、快捷跳转、子插件托管、全局心跳引擎
  *
+ * v1.0.3 更新：
+ *   - 修复 ES5 兼容性：移除 Object.assign / findIndex / 展开运算符
  * v1.0.2 更新：
  *   - UI 全面升级：白金极光与神圣典雅美学（Pearl Glassmorphism）
  *   - 新增返回/退出按钮，解决无法退出 App 的问题
@@ -606,7 +608,8 @@
   }
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
   function deepMerge(target, source) {
-    var out = Object.assign({}, target)
+    var out = {}
+    for (var k in target) { out[k] = target[k] }
     for (var k in source) {
       if (source[k] && typeof source[k] === 'object' && !Array.isArray(source[k])) {
         out[k] = deepMerge(target[k] || {}, source[k])
@@ -1369,11 +1372,18 @@
 
   p.registerSubPlugin = function(options) {
     if (!options || !options.id) { console.error('[RocheHub] registerSubPlugin: missing id'); return false }
-    var existing = this.config.subPlugins.findIndex(function(p) { return p.id === options.id })
+    var existing = -1
+    for (var ei = 0; ei < this.config.subPlugins.length; ei++) {
+      if (this.config.subPlugins[ei].id === options.id) { existing = ei; break }
+    }
     var pluginData = { id: options.id, name: options.name || options.id, icon: options.icon || svgIcon('rocket'), version: options.version || '', action: options.action || null, requireContext: options.requireContext || null }
     if (existing >= 0) this.config.subPlugins[existing] = pluginData
     else this.config.subPlugins.push(pluginData)
-    if (options.task) this._registerTask({ pluginId: options.id, ...options.task })
+    if (options.task) {
+      var taskData = { pluginId: options.id }
+      for (var tk in options.task) { taskData[tk] = options.task[tk] }
+      this._registerTask(taskData)
+    }
     this._saveConfig()
     this._renderSubPluginList()
     console.log('[RocheHub] sub-plugin registered: ' + pluginData.name + ' (' + pluginData.id + ')')
@@ -1418,7 +1428,7 @@
   window.RochePlugin.register({
     id: 'roche-hub',
     name: 'Hub \u60AC\u6D6E\u7403',
-    version: '1.0.2',
+    version: '1.0.3',
     icon: '\u2606',
     apps: [{
       id: 'roche-hub-home',
