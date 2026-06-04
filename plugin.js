@@ -1,6 +1,9 @@
 /**
- * Roche Hub 悬浮球 v1.0.7 — 白金极光版
+ * Roche Hub 悬浮球 v1.0.8 — 白金极光版
  * 全局悬浮球中心 — 统一入口、快捷跳转、子插件托管、全局心跳引擎
+ *
+ * v1.0.8 更新：
+ *   - 修复菜单完全不显示：恢复menuEl容器定位，菜单项作为子元素挂载到容器上
  *
  * v1.0.7 更新：
  *   - 修复角色聊天跳转：使用 conversationId 直接调用 openApp，多重 fallback 查找会话
@@ -116,7 +119,7 @@
     '}',
     '.roche-hub-menu-item.show { opacity: 1; transform: scale(1); }',
 
-    '/* 菜单按钮：冰晶玻璃 */',
+    /* 菜单按钮：冰晶玻璃 */
     '.roche-hub-menu-btn {',
     '  width: 46px; height: 46px; border-radius: 50%;',
     '  background: linear-gradient(145deg,',
@@ -154,7 +157,7 @@
     '  letter-spacing:.03em; font-weight:500;',
     '}',
 
-    '/* ── App 视图：白金极光面板 ── */',
+    /* App 视图：白金极光面板 */
     '.rh-app {',
     '  --pearl-bg: rgba(252,248,252,0.96);',
     '  --pearl-surface: rgba(255,255,255,0.78);',
@@ -182,14 +185,14 @@
     '  background: rgba(184,154,200,0.3); border-radius: 3px;',
     '}',
 
-    '/* 头部：仪式感区域 */',
+    /* 头部：仪式感区域 */
     '.rh-header {',
     '  padding: 32px 24px 26px; text-align: center;',
     '  position: relative; overflow: hidden;',
     '  background: linear-gradient(180deg,',
     '    rgba(212,160,173,0.06) 0%, transparent 70%);',
     '}',
-    '/* 头部呼吸光斑 */',
+    /* 头部呼吸光斑 */
     '.rh-header::before {',
     '  content: ""; position: absolute;',
     '  top: -30px; left: 50%; transform: translateX(-50%);',
@@ -229,7 +232,7 @@
     '  margin: 0; letter-spacing:.03em; font-weight:400;',
     '}',
 
-    '/* 返回按钮 */',
+    /* 返回按钮 */
     '.rh-back-btn {',
     '  display: inline-flex; align-items: center; gap: 6px;',
     '  padding: 8px 18px; border-radius: 12px;',
@@ -251,7 +254,7 @@
     '}',
     '.rh-back-btn:active { transform: scale(.96); }',
 
-    '/* 分区卡片：玻璃切片 */',
+    /* 分区卡片：玻璃切片 */
     '.rh-section {',
     '  margin: 20px 16px 0;',
     '  background: linear-gradient(160deg,',
@@ -266,7 +269,7 @@
     '  overflow: hidden;',
     '  position: relative;',
     '}',
-    '/* 卡片角落呼吸光 */',
+    /* 卡片角落呼吸光 */
     '.rh-section::before {',
     '  content:""; position:absolute; bottom:0; right:0;',
     '  width:80px; height:80px;',
@@ -281,14 +284,14 @@
     '  display: flex; align-items: center; gap: 8px;',
     '}',
     '.rh-section-title .rh-icon { font-size: 14px; }',
-    '/* 标题装饰线 */',
+    /* 标题装饰线 */
     '.rh-section-title::after {',
     '  content:""; flex:1; height:1px;',
     '  background: linear-gradient(90deg, var(--pearl-border), transparent);',
     '  margin-left: 10px;',
     '}',
 
-    '/* 设置行 */',
+    /* 设置行 */
     '.rh-row {',
     '  display: flex; align-items: center; justify-content: space-between;',
     '  padding: 14px 20px;',
@@ -304,7 +307,7 @@
     '}',
     '.rh-row-val { font-size: 13px; color: var(--pearl-accent2); font-weight: 600; }',
 
-    '/* 滑块 */',
+    /* 滑块 */
     '.rh-slider-wrap { flex:1; max-width: 130px; margin-left: 14px; }',
     '.rh-slider {',
     '  -webkit-appearance:none; appearance:none; width:100%;',
@@ -330,7 +333,7 @@
     '              inset 0 1px 1px rgba(255,255,255,1);',
     '}',
 
-    '/* 颜色选择器 */',
+    /* 颜色选择器 */
     '.rh-color-picker {',
     '  -webkit-appearance:none; appearance:none;',
     '  width: 30px; height: 30px; border-radius: 50%;',
@@ -344,7 +347,7 @@
     '.rh-color-picker::-webkit-color-swatch-wrapper { padding:0; }',
     '.rh-color-picker::-webkit-color-swatch { border:none; border-radius:50%; }',
 
-    '/* 按钮 */',
+    /* 按钮 */
     '.rh-btn {',
     '  display:inline-flex; align-items:center; gap:6px;',
     '  padding: 9px 18px; border-radius: 11px;',
@@ -392,7 +395,7 @@
     '}',
     '.rh-btn-sm { padding: 6px 14px; font-size: 12px; border-radius: 9px; }',
 
-    '/* 快捷项列表 */',
+    /* 快捷项列表 */
     '.rh-sc-item {',
     '  display:flex; align-items:center; gap:12px;',
     '  padding: 12px 20px;',
@@ -442,7 +445,7 @@
     '  color:#C08090; border-color:rgba(212,128,144,0.3);',
     '}',
 
-    '/* 模态框 */',
+    /* 模态框 */
     '.rh-modal-mask {',
     '  position:fixed; inset:0;',
     '  z-index:2147483647;',
@@ -496,7 +499,7 @@
     '  display:flex; justify-content:flex-end; gap:8px;',
     '}',
 
-    '/* 表单 */',
+    /* 表单 */
     '.rh-input, .rh-select, .rh-textarea {',
     '  width:100%; padding:11px 15px; border-radius:11px;',
     '  border:1px solid var(--pearl-border);',
@@ -525,7 +528,7 @@
     '  text-transform:uppercase; letter-spacing:.06em;',
     '}',
 
-    '/* 开关 */',
+    /* 开关 */
     '.rh-switch { position:relative; width:46px; height:26px; flex-shrink:0; }',
     '.rh-switch input { display:none; }',
     '.rh-sw-track {',
@@ -555,7 +558,7 @@
     '.rh-sw-track.on .rh-sw-knob { transform:translateX(20px); }',
 
 
-    '/* 空状态 */',
+    /* 空状态 */
     '.rh-empty {',
     '  padding:36px 22px; text-align:center;',
     '  color:var(--pearl-text2); font-size:13px;',
@@ -576,7 +579,7 @@
     '  box-shadow: 0 2px 8px rgba(180,165,200,0.1);',
     '}',
 
-    '/* 加载动画 */',
+    /* 加载动画 */
     '@keyframes rhSpin { to { transform: rotate(360deg); } }',
     '.rh-loading {',
     '  display:inline-block; width:16px; height:16px;',
@@ -653,7 +656,7 @@
   /* 几何图标 SVG */
   function svgIcon(type) {
     var icons = {
-      settings: '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="3"/><path d="M10 2a1.5 1.5 0 010 3 1.5 1.5 0 000-3zm0 13a1.5 1.5 0 010 3 1.5 1.5 0 000-3zM3.2 5.8a1.5 1.5 0 01-.6 2 1.5 1.5 0 01-2-.6 1.5 1.5 0 01.6-2 1.5 1.5 0 012 .6zm13.6 8.4a1.5 1.5 0 01.6 2 1.5 1.5 0 01-2 .6 1.5 1.5 0 01-.6-2 1.5 1.5 0 012 0zM2 10a1.5 1.5 0 010 3H1.5a1.5 1.5 0 010-3H2zm16.5 0a1.5 1.5 0 010 3h-.5a1.5 1.5 0 010-3h.5zM3.2 14.2a1.5 1.5 0 01-2-.6 1.5 1.5 0 01.6-2 1.5 1.5 0 012 .6 1.5 1.5 0 01-.6 2zm13.6-8.4a1.5 1.5 0 012-.6 1.5 1.5 0 01-.6 2 1.5 1.5 0 01-2-.6 1.5 1.5 0 01.6-2z"/></svg>',
+      settings: '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="3"/><path d="M10 2a1.5 1.5 0 010 3 1.5 1.5 0 000-3zm0 13a1.5 1.5 0 010 3 1.5 1.5 0 000-3zM3.2 5.8a1.5 1.5 0 01-.6 2 1.5 1.5 0 01-2-.6 1.5 1.5 0 01.6-2 1.5 1.5 0 012 .6zm13.6 8.4a1.5 1.5 0 01.6 2 1.5 1.5 0 01-2 .6 1.5 1.5 0 01-.6-2 1.5 1.5 0 012 0zM2 10a1.5 1.5 0 010 3H1.5a1.5 1.5 0 010-3H2zm16.5 0a1.5 1.5 0 010 3h-.5a1.5 1.5 0 010-3h.5zM3.2 14.2a1.5 1.5 0 01-2-.6 1.5 1.5 0 01.6-2 1.5 1.5 0 01-.6 2zm13.6-8.4a1.5 1.5 0 012-.6 1.5 1.5 0 01-.6 2 1.5 1.5 0 01-2-.6 1.5 1.5 0 01.6-2z"/></svg>',
       plus: '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 4v12M4 10h12"/></svg>',
       link: '<svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 12a4 4 0 01-1-5.5L9 4.5a4 4 0 015.5 5.5L13 12m-2 2a4 4 0 001 5.5L11 15.5a4 4 0 01-5.5-5.5L7 8"/></svg>',
       heart: '<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 17s-7-4.4-7-9a4 4 0 017-2.5A4 4 0 0117 8c0 4.6-7 9-7 9z"/></svg>',
@@ -724,6 +727,7 @@
       }
     } catch(e) { console.warn('[RocheHub] load char list failed', e) }
     try {
+      // 使用 conversation.list 获取会话列表（角色聊天/群聊）
       if (this.roche.conversation && typeof this.roche.conversation.list === 'function') {
         this._appList = await this.roche.conversation.list() || []
       }
@@ -837,6 +841,7 @@
     this._dragPointerId = null
     ball.style.transition = ''
     if (this.isDragging) {
+      // 自由拖拽：不做吸附，保留当前位置
       this.isDragging = false
     } else { this.toggleMenu() }
     ball.classList.add('idle-pulse')
@@ -891,6 +896,7 @@
     var self = this
     this.menuItems.forEach(function(item) { item.el.classList.remove('show') })
     setTimeout(function() {
+      /* 清理所有直接挂载在 body 上的菜单项 */
       self.menuItems.forEach(function(item) { if (item.el && item.el.parentNode) item.el.remove() })
       if (self.overlayEl) { self.overlayEl.remove(); self.overlayEl = null }
       if (self.menuEl) { self.menuEl.remove(); self.menuEl = null }
@@ -900,7 +906,14 @@
   }
 
   p._positionMenu = function() {
-    /* 菜单项现在使用 position: fixed，直接定位，不需要容器偏移 */
+    if (!this.menuEl || !this.ballEl) return
+    var rect = this.ballEl.getBoundingClientRect()
+    var size = this.config.ball.size
+    /* 容器定位到悬浮球中心，作为菜单项的定位原点 */
+    this.menuEl.style.left = (rect.left + size / 2) + 'px'
+    this.menuEl.style.top = (rect.top + size / 2) + 'px'
+    this.menuEl.style.width = '1px'
+    this.menuEl.style.height = '1px'
   }
 
   p._buildMenuItems = function() {
@@ -909,18 +922,15 @@
     var radius = this.config.menu.radius
     var ballSize = this.config.ball.size
     var self = this
-    var rect = this.ballEl.getBoundingClientRect()
-    var centerX = rect.left + ballSize / 2
-    var centerY = rect.top + ballSize / 2
     items.forEach(function(item, i) {
       var pos = radialPosition(i, total, radius, ballSize)
       var el = self._createMenuItem(item)
-      el.style.position = 'fixed'
-      el.style.left = (centerX + pos.x) + 'px'
-      el.style.top = (centerY + pos.y) + 'px'
+      /* 菜单项相对于容器（即球中心）的偏移 */
+      el.style.left = pos.x + 'px'
+      el.style.top = pos.y + 'px'
       el.style.marginLeft = '-23px'
       el.style.marginTop = '-30px'
-      document.body.appendChild(el)
+      self.menuEl.appendChild(el)
       self.menuItems.push({ el: el, item: item })
       setTimeout(function() { el.classList.add('show') }, 60 + i * 55)
     })
@@ -965,12 +975,14 @@
         case 'character':
           if (sc.targetId) {
             var targetConvId = null
+            /* 优先通过 conversation API 查找该角色的会话 */
             try {
               var convList = await this.roche.conversation.list({ memberId: sc.targetId }) || []
               if (convList.length > 0) {
                 targetConvId = convList[0].conversationId || convList[0].id
               }
             } catch(e) { console.warn('[RocheHub] conv list error', e) }
+            /* fallback: 从缓存的角色列表查找 */
             if (!targetConvId && this._charList.length > 0) {
               for (var ci = 0; ci < this._charList.length; ci++) {
                 if (this._charList[ci].id === sc.targetId || this._charList[ci].name === sc.targetId) {
@@ -978,6 +990,7 @@
                 }
               }
             }
+            /* 最后尝试直接用 character.get 获取最新数据 */
             if (!targetConvId) {
               try {
                 var charDetail = await this.roche.character.get(sc.targetId)
@@ -1028,6 +1041,7 @@
       + '  </div>'
       + '</div>'
 
+      /* 外观设置 */
       + '<div class="rh-section">'
       + '  <div class="rh-section-title"><span class="rh-icon">\uD83C\uDFA8</span> \u5916\u89C2</div>'
 
@@ -1057,11 +1071,13 @@
 
       + '</div>'
 
+      /* 快捷方式 */
       + '<div class="rh-section">'
       + '  <div class="rh-section-title"><span class="rh-icon">' + svgIcon('link') + '</span> \u5FEB\u6377\u65B9\u5F0F<button class="rh-btn rh-btn-sm" id="rh-add-sc" style="margin:left:auto;">' + svgIcon('plus') + ' \u6DFB\u52A0</button></div>'
       + '  <div id="rh-sc-list"></div>'
       + '</div>'
 
+      /* 后台引擎 */
       + '<div class="rh-section">'
       + '  <div class="rh-section-title"><span class="rh-icon">' + svgIcon('heart') + '</span> \u540E\u53F0\u5F15\u64CE</div>'
 
@@ -1076,6 +1092,7 @@
       + '  </div>'
       + '</div>'
 
+      /* 已注册子插件 */
       + '<div class="rh-section">'
       + '  <div class="rh-section-title"><span class="rh-icon">' + svgIcon('rocket') + '</span> \u5DF2\u6CE8\u518C\u5B50\u63D2\u4EF6</div>'
       + '  <div id="rh-sp-list"></div>'
@@ -1093,10 +1110,12 @@
   p._bindAppEvents = function(app) {
     var self = this
 
+    /* 返回按钮 */
     app.querySelector('#rh-back-btn').addEventListener('click', function() {
       self.roche.ui.closeApp()
     })
 
+    /* 大小滑块 */
     var szSlider = app.querySelector('#rh-size')
     var szVal = app.querySelector('#rh-size-val')
     szSlider.addEventListener('input', async function() {
@@ -1107,6 +1126,7 @@
       await self._saveConfig()
     })
 
+    /* 透明度滑块 */
     var opSlider = app.querySelector('#rh-opacity')
     var opVal = app.querySelector('#rh-opacity-val')
     opSlider.addEventListener('input', async function() {
@@ -1117,6 +1137,7 @@
       await self._saveConfig()
     })
 
+    /* 形状选择 */
     var shapeSel = app.querySelector('#rh-shape')
     shapeSel.addEventListener('change', async function() {
       self.config.ball.shape = shapeSel.value
@@ -1124,6 +1145,7 @@
       await self._saveConfig()
     })
 
+    /* 图片URL输入 */
     var imgUrl = app.querySelector('#rh-img-url')
     imgUrl.addEventListener('change', async function() {
       var url = imgUrl.value.trim()
@@ -1137,8 +1159,10 @@
       }
     })
 
+    /* 添加快捷方式 */
     app.querySelector('#rh-add-sc').addEventListener('click', function() { self._showShortcutModal() })
 
+    /* 心跳开关 */
     var hbToggle = app.querySelector('#rh-hb-toggle')
     var hbRow = app.querySelector('#rh-hb-row')
     var hbTrack = app.querySelector('#rh-hb-toggle').parentElement.querySelector('.rh-sw-track')
@@ -1153,6 +1177,7 @@
       else self._stopHeartbeat()
     })
 
+    /* 心跳间隔 */
     var hbInterval = app.querySelector('#rh-hb-interval')
     var hbVal = app.querySelector('#rh-hb-val')
     hbInterval.addEventListener('input', async function() {
@@ -1199,6 +1224,7 @@
     var mask = document.createElement('div')
     mask.className = 'rh-modal-mask'
 
+    /* 构建角色选项 */
     var charOptions = '<option value="">-- \u8BF7\u9009\u62E9\u89D2\u8272 --</option>'
     ;(this._charList || []).forEach(function(ch) {
       var cid = ch.id || ch.uuid || ch.name || ''
@@ -1208,6 +1234,7 @@
     })
     if (this._charList.length === 0) charOptions = '<option value="" disabled>\u672A\u83B7\u53D6\u5230\u89D2\u8272\u5217\u8868</option>'
 
+    /* 构建会话选项 */
     var appOptions = '<option value="">-- \u8BF7\u9009\u62E9\u4F1A\u8BDD --</option>'
     ;(this._appList || []).forEach(function(ap) {
       var aid = ap.conversationId || ap.id || ''
@@ -1273,12 +1300,14 @@
     var appGroup = mask.querySelector('#ms-app-group')
     var custGroup = mask.querySelector('#ms-custom-group')
 
+    /* 类型切换联动 */
     typeSel.addEventListener('change', function() {
       charGroup.style.display = typeSel.value === 'character' ? '' : 'none'
       appGroup.style.display = typeSel.value === 'app' ? '' : 'none'
       custGroup.style.display = typeSel.value === 'custom' ? '' : 'none'
     })
 
+    /* 角色选择时自动填充头像 */
     var targetSel = mask.querySelector('#ms-target')
     targetSel.addEventListener('change', function() {
       var opt = targetSel.querySelector('option:checked')
@@ -1324,7 +1353,7 @@
       await self._saveConfig()
       self._closeModal(mask)
       self._renderShortcutList()
-      self.roche.ui.toast(isEdit ? '\u5DF2\u4FDD\u5B58' : '\u5DFB\u6DFB\u52A0')
+      self.roche.ui.toast(isEdit ? '\u5DF2\u4FDD\u5B58' : '\u5DF2\u6DFB\u52A0')
     })
   }
 
@@ -1428,10 +1457,12 @@
      生命周期：App视图卸载 / 完全销毁
      ════════════════════════════════════════════════════════════ */
 
+  /* 只清除 App 视图，保留悬浮球 */
   p.unmountAppView = function() {
     if (this._container) { this._container.innerHTML = ''; this._container = null }
   }
 
+  /* 完全销毁（插件卸载时调用） */
   p.destroyBall = function() {
     this._stopHeartbeat()
     if (this.ballEl) { this.ballEl.remove(); this.ballEl = null }
@@ -1444,6 +1475,7 @@
     this._heartbeatTasks = []
   }
 
+  /* 保留 destroy 作为完全销毁的别名 */
   p.destroy = function() {
     this.destroyBall()
   }
@@ -1457,7 +1489,7 @@
   window.RochePlugin.register({
     id: 'roche-hub',
     name: 'Hub \u60AC\u6D6E\u7403',
-    version: '1.0.7',
+    version: '1.0.8',
     icon: '\u2606',
     apps: [{
       id: 'roche-hub-home',
