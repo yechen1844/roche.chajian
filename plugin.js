@@ -1,7 +1,9 @@
 /**
- * Roche Hub 悬浮球 v1.0.3 — 白金极光版
+ * Roche Hub 悬浮球 v1.0.4 — 白金极光版
  * 全局悬浮球中心 — 统一入口、快捷跳转、子插件托管、全局心跳引擎
  *
+ * v1.0.4 更新：
+ *   - 修复模态框选项语法错误（三元表达式字符串拼接问题）
  * v1.0.3 更新：
  *   - 修复 ES5 兼容性：移除 Object.assign / findIndex / 展开运算符
  * v1.0.2 更新：
@@ -677,13 +679,12 @@
     this._heartbeatTasks = []
     this._boundHandlers = {}
     this._container = null
-    this._charList = []   // 缓存角色列表
-    this._appList = []    // 缓存App列表
+    this._charList = []
+    this._appList = []
   }
 
   var p = RocheHub.prototype
 
-  /* ── 初始化 ── */
   p.init = async function(container) {
     this._container = container
     await this._loadConfig()
@@ -695,7 +696,6 @@
     this._renderAppView()
   }
 
-  /* ── 配置持久化 ── */
   p._loadConfig = async function() {
     try { var s = await this.roche.storage.get('config'); this.config = deepMerge(DEFAULTS, s || {}) }
     catch (e) { console.warn('[RocheHub] load config failed', e); this.config = JSON.parse(JSON.stringify(DEFAULTS)) }
@@ -705,30 +705,25 @@
     catch (e) { console.warn('[RocheHub] save config failed', e) }
   }
 
-  /* ── 加载角色和App列表 ── */
   p._loadLists = async function() {
     try {
-      // 尝试从 character API 获取角色列表
       if (this.roche.character && typeof this.roche.character.list === 'function') {
         this._charList = await this.roche.character.list() || []
       }
     } catch(e) { console.warn('[RocheHub] load char list failed', e) }
     try {
-      // 尝试获取已安装的 App 列表
       if (this.roche.ui && typeof this.roche.ui.getApps === 'function') {
         this._appList = await this.roche.ui.getApps() || []
       }
     } catch(e) { console.warn('[RocheHub] load app list failed', e) }
   }
 
-  /* ── 样式注入 ── */
   p._injectStyles = function() {
     this.styleEl = document.createElement('style')
     this.styleEl.textContent = CSS
     document.head.appendChild(this.styleEl)
   }
 
-  /* ── 悬浮球 ── */
   p._createBall = function() {
     var self = this
     var ball = document.createElement('div')
@@ -778,7 +773,6 @@
     }
   }
 
-  /* ── 事件绑定 ── */
   p._bindEvents = function() {
     var self = this
     var ball = this.ballEl
@@ -855,7 +849,6 @@
     if (this.isOpen) this._positionMenu()
   }
 
-  /* ── 放射菜单 ── */
   p.toggleMenu = function() { this.isOpen ? this.closeMenu() : this.openMenu() }
 
   p.openMenu = function() {
@@ -968,10 +961,6 @@
     } catch (err) { console.error('[RocheHub] shortcut error:', err); this.roche.ui.toast('\u6267\u884C\u5931\u8D25: ' + err.message) }
   }
 
-  /* ════════════════════════════════════════════════════════════
-     App 视图 — 白金极光面板
-     ════════════════════════════════════════════════════════════ */
-
   p._renderAppView = function() {
     var c = this._container
     c.innerHTML = ''
@@ -990,7 +979,6 @@
       + '  </div>'
       + '</div>'
 
-      /* 外观设置 */
       + '<div class="rh-section">'
       + '  <div class="rh-section-title"><span class="rh-icon">\uD83C\uDFA8</span> \u5916\u89C2</div>'
 
@@ -1022,13 +1010,11 @@
         : '')
       + '</div>'
 
-      /* 快捷方式 */
       + '<div class="rh-section">'
       + '  <div class="rh-section-title"><span class="rh-icon">' + svgIcon('link') + '</span> \u5FEB\u6377\u65B9\u5F0F<button class="rh-btn rh-btn-sm" id="rh-add-sc" style="margin:left:auto;">' + svgIcon('plus') + ' \u6DFB\u52A0</button></div>'
       + '  <div id="rh-sc-list"></div>'
       + '</div>'
 
-      /* 后台引擎 */
       + '<div class="rh-section">'
       + '  <div class="rh-section-title"><span class="rh-icon">' + svgIcon('heart') + '</span> \u540E\u53F0\u5F15\u64CE</div>'
 
@@ -1043,7 +1029,6 @@
       + '  </div>'
       + '</div>'
 
-      /* 已注册子插件 */
       + '<div class="rh-section">'
       + '  <div class="rh-section-title"><span class="rh-icon">' + svgIcon('rocket') + '</span> \u5DF2\u6CE8\u518C\u5B50\u63D2\u4EF6</div>'
       + '  <div id="rh-sp-list"></div>'
@@ -1057,16 +1042,13 @@
     this._renderSubPluginList()
   }
 
-  /* ── App 内事件绑定 ── */
   p._bindAppEvents = function(app) {
     var self = this
 
-    /* 返回按钮 */
     app.querySelector('#rh-back-btn').addEventListener('click', function() {
       self.roche.ui.openApp('')
     })
 
-    /* 大小滑块 */
     var szSlider = app.querySelector('#rh-size')
     var szVal = app.querySelector('#rh-size-val')
     szSlider.addEventListener('input', async function() {
@@ -1077,7 +1059,6 @@
       await self._saveConfig()
     })
 
-    /* 透明度滑块 */
     var opSlider = app.querySelector('#rh-opacity')
     var opVal = app.querySelector('#rh-opacity-val')
     opSlider.addEventListener('input', async function() {
@@ -1088,7 +1069,6 @@
       await self._saveConfig()
     })
 
-    /* 形状选择 */
     var shapeSel = app.querySelector('#rh-shape')
     shapeSel.addEventListener('change', async function() {
       self.config.ball.shape = shapeSel.value
@@ -1096,7 +1076,6 @@
       await self._saveConfig()
     })
 
-    /* 图片上传 */
     var imgUpload = app.querySelector('#rh-img-upload')
     imgUpload.addEventListener('change', async function(e) {
       var file = e.target.files[0]
@@ -1123,10 +1102,8 @@
       self._renderAppView()
     })
 
-    /* 添加快捷方式 */
     app.querySelector('#rh-add-sc').addEventListener('click', function() { self._showShortcutModal() })
 
-    /* 心跳开关 */
     var hbToggle = app.querySelector('#rh-hb-toggle')
     var hbRow = app.querySelector('#rh-hb-row')
     hbToggle.addEventListener('change', async function() {
@@ -1141,7 +1118,6 @@
       else self._stopHeartbeat()
     })
 
-    /* 心跳间隔 */
     var hbInterval = app.querySelector('#rh-hb-interval')
     var hbVal = app.querySelector('#rh-hb-val')
     hbInterval.addEventListener('input', async function() {
@@ -1153,7 +1129,6 @@
     })
   }
 
-  /* ── 快捷方式列表（带智能选择器） ── */
   p._renderShortcutList = function() {
     var listEl = document.querySelector('#rh-sc-list')
     if (!listEl) return
@@ -1179,7 +1154,6 @@
     listEl.querySelectorAll('.del-btn').forEach(function(btn, i) { btn.addEventListener('click', function() { self._deleteShortcut(i) }) })
   }
 
-  /* ── 快捷方式模态框（带下拉选择器） ── */
   p._showShortcutModal = function(editIdx) {
     var isEdit = typeof editIdx === 'number'
     var sc = isEdit ? this.config.shortcuts[editIdx] : { id: uid(), name: '', type: 'character', targetId: '', targetName: '', icon: '', customAction: '' }
@@ -1188,7 +1162,6 @@
     var mask = document.createElement('div')
     mask.className = 'rh-modal-mask'
 
-    /* 构建角色选项 */
     var charOptions = '<option value="">-- \u8BF7\u9009\u62E9\u89D2\u8272 --</option>'
     ;(this._charList || []).forEach(function(ch) {
       var cid = ch.id || ch.uuid || ch.name || ''
@@ -1198,7 +1171,6 @@
     })
     if (this._charList.length === 0) charOptions = '<option value="" disabled>\u672A\u83B7\u53D6\u5230\u89D2\u8272\u5217\u8868</option>'
 
-    /* 构建App选项 */
     var appOptions = '<option value="">-- \u8BF7\u9009\u62E9 App --</option>'
     ;(this._appList || []).forEach(function(ap) {
       var aid = ap.id || ap.appId || ap.name || ''
@@ -1221,8 +1193,8 @@
       + '  <div class="rh-fg"><label class="rh-fg-label">\u7C7B\u578B</label>'
       + '    <select class="rh-select" id="ms-type">'
       + '      <option value="character"' + (sc.type === 'character' ? ' selected' : '') + '>\uD83D\uDC64 \u89D2\u8272\u804A\u5929</option>'
-      + '      <option value="app"' + (sc.type === 'app' ? ' selected' : ')'>\uD83D\uDCBB App \u8DF3\u8F6C</option>'
-      + '      <option value="custom"' + (sc.type === 'custom' ? ' selected' : ')'>\u2728 \u81EA\u5B9A\u4E49\u52A8\u4F5C</option>'
+      + '      <option value="app"' + (sc.type === 'app' ? ' selected' : '') + '>\uD83D\uDCBB App \u8DF3\u8F6C</option>'
+      + '      <option value="custom"' + (sc.type === 'custom' ? ' selected' : '') + '>\u2728 \u81EA\u5B9A\u4E49\u52A8\u4F5C</option>'
       + '    </select></div>'
 
       + '  <div class="rh-fg" id="ms-char-group">'
@@ -1260,7 +1232,6 @@
     var appGroup = mask.querySelector('#ms-app-group')
     var custGroup = mask.querySelector('#ms-custom-group')
 
-    /* 类型切换联动 */
     typeSel.addEventListener('change', function() {
       charGroup.style.display = typeSel.value === 'character' ? '' : 'none'
       appGroup.style.display = typeSel.value === 'app' ? '' : 'none'
@@ -1319,7 +1290,6 @@
 
   p._closeModal = function(mask) { mask.classList.remove('show'); setTimeout(function() { mask.remove() }, 380) }
 
-  /* ── 子插件列表 ── */
   p._renderSubPluginList = function() {
     var listEl = document.querySelector('#rh-sp-list')
     if (!listEl) return
@@ -1336,10 +1306,6 @@
         + '</div>'
     }).join('')
   }
-
-  /* ════════════════════════════════════════════════════════════
-     心跳引擎
-     ════════════════════════════════════════════════════════════ */
 
   p._startHeartbeat = function() {
     this._stopHeartbeat()
@@ -1365,10 +1331,6 @@
       } catch (err) { console.error('[RocheHub] task [' + task.id + '] error:', err) }
     }
   }
-
-  /* ════════════════════════════════════════════════════════════
-     子插件注册接口
-     ════════════════════════════════════════════════════════════ */
 
   p.registerSubPlugin = function(options) {
     if (!options || !options.id) { console.error('[RocheHub] registerSubPlugin: missing id'); return false }
@@ -1403,10 +1365,6 @@
     this._heartbeatTasks.push({ id: task.id, pluginId: task.pluginId, type: task.type || 'timer', handler: task.handler, intervalMs: task.intervalMs || null, enabled: task.enabled !== false, config: task.config || {}, lastRun: 0 })
   }
 
-  /* ════════════════════════════════════════════════════════════
-     销毁
-     ════════════════════════════════════════════════════════════ */
-
   p.destroy = function() {
     this._stopHeartbeat()
     if (this.ballEl) { this.ballEl.remove(); this.ballEl = null }
@@ -1419,16 +1377,12 @@
     this._heartbeatTasks = []
   }
 
-  /* ════════════════════════════════════════════════════════════
-     注册入口
-     ════════════════════════════════════════════════════════════ */
-
   var _hubInstance = null
 
   window.RochePlugin.register({
     id: 'roche-hub',
     name: 'Hub \u60AC\u6D6E\u7403',
-    version: '1.0.3',
+    version: '1.0.4',
     icon: '\u2606',
     apps: [{
       id: 'roche-hub-home',
